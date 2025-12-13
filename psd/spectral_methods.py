@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 import jax.scipy as jsp
+from IPython import embed
 from scipy import signal
 
 from psd.p_unit import SimulationConfig
@@ -36,25 +37,22 @@ def spectral(config: SimulationConfig, spikes: jnp.ndarray, stimulus):
     return f, pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
 
 
-def spectral_by_hand(
-    config: SimulationConfig, spikes: jnp.ndarray, stimulus: jnp.ndarray
-):
+def fft(config: SimulationConfig, spikes: jnp.ndarray, stimulus: jnp.ndarray):
     spikes = spikes[:, -config.nperseg :]
     stimulus = stimulus[:, -config.nperseg :]
 
-    tau = spikes.shape[1] * config.fs
-    fft_pxx = jnp.fft.fft(spikes - jnp.mean(spikes, axis=1, keepdims=True))
-    pxx = (jnp.abs(fft_pxx) ** 2) / tau
+    tau = spikes.shape[1] * (1 / config.fs)
+    dt = 1 / config.fs
+    fft_pxx = jnp.fft.fft(spikes - jnp.mean(spikes, axis=1, keepdims=True)) * dt
+    pxx = jnp.abs(fft_pxx) ** 2
 
-    fft_pyy = jnp.fft.fft(stimulus)
-    pyy = (jnp.abs(fft_pyy) ** 2) / tau  # multiply by dt
+    fft_pyy = jnp.fft.fft(stimulus) * dt
+    pyy = jnp.abs(fft_pyy) ** 2
 
     fft_pxy = fft_pxx * jnp.conj(fft_pyy)
     pxy = fft_pxy / tau
 
-    f = jnp.fft.rfftfreq(spikes.shape[1], d=1 / config.fs)
-
-    return f, pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
+    return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
 
 
 def spectral_scipy(config: SimulationConfig, spikes: jnp.ndarray, stimulus):

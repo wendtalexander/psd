@@ -6,7 +6,6 @@ from pathlib import Path
 
 import jax
 import jax.numpy as jnp
-import jax.scipy as jsp
 import matplotlib.pyplot as plt
 import nixio
 from IPython.terminal.embed import embed
@@ -33,7 +32,7 @@ class SimulationConfig:
     save_path: Path
     cell: str
     eodf: float
-    duration: float = 2.0
+    duration: float = 2
     trials: int = 100_000
     contrasts: list[float] = field(default_factory=lambda: [0.1])
     batch_size: int = 2000
@@ -52,7 +51,7 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
     keys = jax.random.split(k, config.trials * len(config.contrasts) * 2).reshape(
         2, len(config.contrasts), config.trials, -1
     )
-
+    cpu_device = jax.devices("cpu")[0]
     simulate = jax.vmap(jax.jit(punit.simulate_spikes), in_axes=[0, 0, None])
     white_noise = jax.vmap(whitenoise, in_axes=[0, None, None, None, None])
     spike_rate = jax.vmap(jax.jit(dsp.rate.spike_rate), in_axes=[0, None])
@@ -68,11 +67,16 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
     for con, contrast in enumerate(config.contrasts):
         f = jnp.fft.rfftfreq(config.nperseg)
 
-        spectral_by_hand = SpectralResults.zeros(
-            config.nperseg, config.fs, oneside=False
+        spectral_fft = SpectralResults.zeros(config.nperseg, config.fs, oneside=False)
+        spectral_welch = SpectralResults.zeros(config.nperseg, config.fs)
+        spectral_convolved_spikes_fft = SpectralResults.zeros(config.nperseg, config.fs)
+        spectral_convolved_spikes_welch_segments = SpectralResults.zeros(
+            config.nperseg, config.fs
         )
 
-        for batch in jnp.arange(0, config.trials, config.batch_size):
+        for batch in track(
+            jnp.arange(0, config.trials, config.batch_size), description="Contrast"
+        ):
             wh = white_noise(
                 keys[0, con, batch : batch + config.batch_size, :],
                 config.wh_low,
@@ -92,57 +96,58 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
             #     ]
             # )
             stimulus = baseline + (baseline * (wh * contrast))
+            # with jax.default_device(cpu_device):
             spikes = simulate(
                 keys[1, con, batch : batch + config.batch_size, :], stimulus, params
             )
-            rate = spike_rate(spikes[:, -config.nperseg :], kernel).sum(axis=0)
+            rate = spike_rate(spikes[:, -config.nperseg :], kernel)
+            rate_sum = rate.sum(axis=0)
 
             pyy, pxx, pxy = spectral_methods.fft(config, spikes, wh)
-            plt.semilogy(spectral_by_hand.f, pyy)
-            plt.xlim(-30, 30)
-            plt.savefig("psd_jan.pdf")
-            plt.close()
+            spectral_fft = spectral_fft.update(pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum)
 
-            spectral_by_hand = spectral_by_hand.update(
-                pyy=pyy, pxx=pxx, pxy=pxy, rate=rate
+            pyy, pxx, pyy = spectral_methods.fft(config, rate, wh)
+            spectral_convolved_spikes_fft = spectral_convolved_spikes_fft.update(
+                pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum
             )
 
-        spectral_by_hand = spectral_by_hand.norm(config.trials)
+            pyy, pxx, pxy = spectral_methods.welch_segments(config, spikes, wh)
+            spectral_welch = spectral_welch.update(
+                pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum
+            )
 
-        coh = jnp.abs(pxys) ** 2 / (pxxs * pyys)
-        das = [pyys, pxxs, pxys, rates, coh]
-        x_axis = [f, f, f, time, f]
-        x_axis_label = ["f", "f", "f", "time", "f"]
-        x_axis_unit = ["Hz", "Hz", "Hz", "s", "Hz"]
-
-        das_names = [
-            f"stimulus_power_spectrum_contrast_{contrast}",
-            f"spikes_power_spectra_contrast_{contrast}",
-            f"cross_power_spectra_contrast_{contrast}",
-            f"mean_rate_contrast_{contrast}",
-            f"coherence_contrast_{contrast}",
-        ]
-        das_type = [
-            "stimulus.power.spectrum",
-            "spikes.power.spectra",
-            "cross.power.spectra",
-            "mean_rate",
-            "coherence",
-        ]
-
-        with nixio.File(str(config.save_path), "a") as file:
-            try:
-                block: nixio.Block = file.create_block("result", "result.block")
-            except DuplicateName:
-                block = file.blocks["result"]
-
-            for arr in range(len(das)):
-                a: nixio.DataArray = block.create_data_array(
-                    das_names[arr], das_type[arr], data=das[arr]
+            pyy, pxx, pyy = spectral_methods.welch_segments(config, rate, wh)
+            spectral_convolved_spikes_welch_segments = (
+                spectral_convolved_spikes_fft.update(
+                    pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum
                 )
-                a.append_range_dimension(
-                    x_axis[arr], x_axis_label[arr], x_axis_unit[arr]
-                )
+            )
+
+        spectral_fft = spectral_fft.norm(config.trials)
+        spectral_welch = spectral_welch.norm(config.trials)
+        spectral_convolved_spikes_fft = spectral_convolved_spikes_fft.norm(
+            config.trials
+        )
+        spectral_convolved_spikes_welch_segments = (
+            spectral_convolved_spikes_welch_segments.norm(config.trials)
+        )
+
+        spectral_fft = spectral_fft.coherence_and_transfer()
+        spectral_welch = spectral_welch.coherence_and_transfer()
+        spectral_convolved_spikes_fft = (
+            spectral_convolved_spikes_fft.coherence_and_transfer()
+        )
+        spectral_convolved_spikes_welch_segments = (
+            spectral_convolved_spikes_welch_segments.coherence_and_transfer()
+        )
+
+        spectral_fft.save(config, contrast, "fft")
+        spectral_welch.save(config, contrast, "welch_segments")
+        spectral_convolved_spikes_fft.save(config, contrast, "rate_fft")
+        spectral_convolved_spikes_welch_segments.save(
+            config, contrast, "rate_welch_segments"
+        )
+
         gc.collect()
 
 
@@ -154,13 +159,12 @@ def main() -> None:
         if not savepath.exists():
             savepath.mkdir(parents=True, exist_ok=True)
 
-        nix_file_path: Path = savepath / f"{model.cell}.nix"
-        if nix_file_path.is_file():
-            log.debug("Found nix File deleting it")
-            nix_file_path.unlink()
-        config = SimulationConfig(
-            save_path=nix_file_path, cell=model.cell, eodf=model.EODf
-        )
+        nix_files: list[Path] = savepath.rglob("*.nix")
+        for nix_file in nix_files:
+            if nix_file.is_file():
+                log.debug("Found nix File deleting it")
+                nix_file.unlink()
+        config = SimulationConfig(save_path=savepath, cell=model.cell, eodf=model.EODf)
         model.deltat = 1 / config.fs
         simulation(config, model)
         sys.exit()

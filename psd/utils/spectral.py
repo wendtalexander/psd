@@ -1,6 +1,9 @@
 from dataclasses import dataclass, replace
 
 import jax.numpy as jnp
+import nixio
+from IPython.terminal.embed import embed
+from nixio.exceptions import DuplicateName
 
 
 @dataclass
@@ -12,12 +15,14 @@ class SpectralResults:
     coherence: jnp.ndarray
     transfer: jnp.ndarray
     f: jnp.ndarray
+    time: jnp.ndarray
 
     @classmethod
-    def zeros(cls, nperseg, fs, oneside: True):
+    def zeros(cls, nperseg: float, fs: float, oneside: bool = True):
         n_freqs = (nperseg // 2) + 1
         f = jnp.fft.rfftfreq(nperseg, d=1 / fs)
         n_freqs = f.shape[0]
+        time = jnp.arange(nperseg) / fs
         if not oneside:
             f = jnp.fft.fftfreq(nperseg, d=1 / fs)
             n_freqs = f.shape[0]
@@ -30,6 +35,7 @@ class SpectralResults:
             coherence=jnp.zeros(n_freqs),
             rates=jnp.zeros(nperseg),
             f=f,
+            time=time,
         )
 
     def norm(self, trials):
@@ -49,3 +55,51 @@ class SpectralResults:
             pxys=self.pxys + pxy,
             rates=self.rates + rate,
         )
+
+    def coherence_and_transfer(self):
+        coherence = (jnp.abs(self.pxys) ** 2) / (self.pxxs * self.pyys)
+        transfer = jnp.abs(self.pxys / self.pyys)
+        return replace(self, coherence=coherence, transfer=transfer)
+
+    def save(self, config, contrast, label="fft"):
+        das = [
+            self.pyys,
+            self.pxxs,
+            self.pxys,
+            self.rates,
+            self.coherence,
+            self.transfer,
+            self.f,
+            self.time,
+        ]
+        das_names = [
+            f"{label}_pyy_contrast_{contrast}",
+            f"{label}_pxx_contrast_{contrast}",
+            f"{label}_pxy_contrast_{contrast}",
+            f"{label}_rate_contrast_{contrast}",
+            f"{label}_coherence_contrast_{contrast}",
+            f"{label}_transfer_contrast_{contrast}",
+            "f",
+            "time",
+        ]
+        das_type = [
+            "stimulus.power.spectrum",
+            "spikes.power.spectra",
+            "cross.power.spectra",
+            "mean.rate",
+            "coherence",
+            "transfer",
+            "f",
+            "time",
+        ]
+        name = label + "_" + config.save_path.name + ".nix"
+        nix_file_name = config.save_path / name
+
+        with nixio.File(str(nix_file_name), "a") as file:
+            try:
+                block: nixio.Block = file.create_block("result", "result.block")
+            except DuplicateName:
+                block = file.blocks["result"]
+
+            for arr in range(len(das_names)):
+                block.create_data_array(das_names[arr], das_type[arr], data=das[arr])

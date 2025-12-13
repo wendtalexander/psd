@@ -1,0 +1,3 @@
+---
+title: PSD numerical inspection of the power spectral density
+---

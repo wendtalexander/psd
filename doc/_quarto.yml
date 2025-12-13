@@ -1,0 +1,52 @@
+# In doc/_quarto.yml
+project:
+  type: website
+  output-dir: _site
+  # preview:
+  #   port: 7000
+
+format:
+  html:
+    # code-fold: true
+    # code-summary: "Show the code"
+    theme: 
+      light: flatly
+      dark: darkly
+    css:
+      - api/_styles-quartodoc.css
+      - styles.css
+    fontsize: 1.1em
+    linestretch: 1.7
+    grid:
+      sidebar-width: 300px
+      body-width: 900px
+      margin-width: 300px
+      gutter-width: 1.5rem
+
+    toc: true
+    toc-title: Contents
+    code-block-bg: true
+    code-block-border-left: "#31BAE9"
+    code-line-numbers: true
+    highlight-style: github
+    link-external-icon: true
+    link-external-newwindow: true
+    eqn-number: true
+
+website:
+  title: "PSD"
+  sidebar:
+    title: false
+    style: "docked"
+    search: true
+    type: "dark"
+    tools:
+      - icon: github
+        href: https://github.com/wendtalexander/psd
+    contents:
+      - text: "Introduction"
+        href: "index.qmd"
+
+
+execute:
+  freeze: auto

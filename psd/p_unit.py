@@ -1,23 +1,28 @@
 import gc
 import logging
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
+import matplotlib.pyplot as plt
 import nixio
 from IPython.terminal.embed import embed
+from jaxon import dsp
 from jaxon.models import punit
 from jaxon.params import load
 from jaxon.stimuli.noise import whitenoise
-from nixio.execption import DuplicateName
+from nixio.exceptions import DuplicateName
 from rich.progress import track
 
+from psd import spectral_methods
 from psd.utils import setup_rich
 from psd.utils.general import find_project_root
 from psd.utils.logging import setup_logging
+from psd.utils.spectral import SpectralResults
+from psd.utils.white_noise import whitenoise as whitenoise_jan
 
 log = logging.getLogger(__name__)
 setup_logging(log)
@@ -41,16 +46,6 @@ class SimulationConfig:
     ktime: float = 4
 
 
-def calc_spike_rate(binary_spike_train, kernel):
-    return jsp.signal.fftconvolve(binary_spike_train, kernel, "same")
-
-
-def gauss_kernel(sigma, dt, k_time):
-    x = jnp.arange(-k_time * sigma, k_time * sigma, dt)
-    y = jnp.exp(-0.5 * (x / sigma) ** 2) / jnp.sqrt(2.0 * jnp.pi) / sigma
-    return y
-
-
 def simulation(config: SimulationConfig, params: punit.PUnitParams):
     log.debug(f"Processing nix File {config.save_path.name}")
     k = jax.random.PRNGKey(config.jax_key)
@@ -60,10 +55,7 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
 
     simulate = jax.vmap(jax.jit(punit.simulate_spikes), in_axes=[0, 0, None])
     white_noise = jax.vmap(whitenoise, in_axes=[0, None, None, None, None])
-    # spectral_by_hand_func = jax.vmap(
-    #     jax.jit(spectral_by_hand, static_argnames=["config"]), in_axes=[None, 0, 0]
-    # )
-    spike_rate = jax.vmap(jax.jit(calc_spike_rate), in_axes=[0, None])
+    spike_rate = jax.vmap(jax.jit(dsp.rate.spike_rate), in_axes=[0, None])
     ktime = jnp.arange(
         -config.ktime * config.sigma, config.ktime * config.sigma, 1 / config.fs
     )
@@ -71,18 +63,16 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
     baseline = jnp.sin(2 * jnp.pi * config.eodf * time)[jnp.newaxis, :]
     baseline = jnp.repeat(baseline, config.batch_size, axis=0)
     n_freq_bins = config.nperseg // 2 + 1
-    kernel = gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
+    kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
 
     for con, contrast in enumerate(config.contrasts):
-        pyys = jnp.zeros(n_freq_bins)
-        pxxs = jnp.zeros(n_freq_bins)
-        pxys = jnp.zeros(n_freq_bins, dtype=jnp.complex64)
-        rates = jnp.zeros(config.nperseg)
+        f = jnp.fft.rfftfreq(config.nperseg)
 
-        for batch in track(
-            jnp.arange(0, config.trials, config.batch_size),
-            description=f"Processing Contrast {contrast}",
-        ):
+        spectral_by_hand = SpectralResults.zeros(
+            config.nperseg, config.fs, oneside=False
+        )
+
+        for batch in jnp.arange(0, config.trials, config.batch_size):
             wh = white_noise(
                 keys[0, con, batch : batch + config.batch_size, :],
                 config.wh_low,
@@ -90,20 +80,34 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
                 config.fs,
                 config.duration,
             )
+            # wh_jan = jnp.array(
+            #     [
+            #         whitenoise_jan(
+            #             config.wh_low,
+            #             config.wh_high,
+            #             1 / config.fs,
+            #             config.duration,
+            #         )[:-1]
+            #         for _ in range(config.batch_size)
+            #     ]
+            # )
             stimulus = baseline + (baseline * (wh * contrast))
             spikes = simulate(
                 keys[1, con, batch : batch + config.batch_size, :], stimulus, params
             )
-            f, pyy, pxx, pxy = spectral_by_hand(config, spikes, wh)
-            rates += spike_rate(spikes[:, -config.nperseg :], kernel).sum(axis=0)
-            pyys += pyy
-            pxxs += pxx
-            pxys += pxy
+            rate = spike_rate(spikes[:, -config.nperseg :], kernel).sum(axis=0)
 
-        pyys /= config.trials
-        pxxs /= config.trials
-        pxys /= config.trials
-        rates /= config.trials
+            pyy, pxx, pxy = spectral_methods.fft(config, spikes, wh)
+            plt.semilogy(spectral_by_hand.f, pyy)
+            plt.xlim(-30, 30)
+            plt.savefig("psd_jan.pdf")
+            plt.close()
+
+            spectral_by_hand = spectral_by_hand.update(
+                pyy=pyy, pxx=pxx, pxy=pxy, rate=rate
+            )
+
+        spectral_by_hand = spectral_by_hand.norm(config.trials)
 
         coh = jnp.abs(pxys) ** 2 / (pxxs * pyys)
         das = [pyys, pxxs, pxys, rates, coh]
@@ -143,24 +147,22 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
 
 
 def main() -> None:
-    models = load.punit_params()
+    models: list[punit.PUnitParams] = load.punit_params()
     for model in models:
-        cell = model.pop("cell")
-        eodf = model.pop("EODf")
-        embed()
-        exit()
-        savepath: Path = find_project_root() / "data" / "simulation" / cell
+        savepath: Path = find_project_root() / "data" / "methods" / model.cell
+
         if not savepath.exists():
             savepath.mkdir(parents=True, exist_ok=True)
 
-        nix_file_path: Path = savepath / f"{cell}.nix"
+        nix_file_path: Path = savepath / f"{model.cell}.nix"
         if nix_file_path.is_file():
             log.debug("Found nix File deleting it")
             nix_file_path.unlink()
-        config = SimulationConfig(save_path=nix_file_path, cell=cell, eodf=eodf)
-        model["deltat"] = 1 / config.fs
-        params = punit.PUnitParams(**model)
-        simulation(config, params)
+        config = SimulationConfig(
+            save_path=nix_file_path, cell=model.cell, eodf=model.EODf
+        )
+        model.deltat = 1 / config.fs
+        simulation(config, model)
         sys.exit()
 
 

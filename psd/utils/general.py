@@ -3,7 +3,7 @@ from pathlib import Path
 from matplotlib.pyplot import Axes
 
 
-def find_project_root(marker="paper1"):
+def find_project_root(marker="psd"):
     current = Path(__file__).resolve()
     for parent in [current] + list(current.parents):
         if (parent / marker).exists():
@@ -18,4 +18,3 @@ def style_pvalue(pvalue: float) -> str:
         return f"{pvalue:.2f}"
     else:
         return "<0.05"
-

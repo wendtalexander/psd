@@ -6,7 +6,7 @@ from scipy import signal
 from psd.p_unit import SimulationConfig
 
 
-def spectral(config: SimulationConfig, spikes: jnp.ndarray, stimulus):
+def welch_segments(config: SimulationConfig, spikes: jnp.ndarray, stimulus):
     spikes = spikes[:, -config.nperseg :]
     stimulus = stimulus[:, -config.nperseg :]
     f, pyy = jsp.signal.welch(
@@ -34,14 +34,13 @@ def spectral(config: SimulationConfig, spikes: jnp.ndarray, stimulus):
         noverlap=None,
     )
 
-    return f, pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
+    return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
 
 
 def fft(config: SimulationConfig, spikes: jnp.ndarray, stimulus: jnp.ndarray):
     spikes = spikes[:, -config.nperseg :]
     stimulus = stimulus[:, -config.nperseg :]
 
-    tau = spikes.shape[1] * (1 / config.fs)
     dt = 1 / config.fs
     fft_pxx = jnp.fft.fft(spikes - jnp.mean(spikes, axis=1, keepdims=True)) * dt
     pxx = jnp.abs(fft_pxx) ** 2
@@ -50,8 +49,7 @@ def fft(config: SimulationConfig, spikes: jnp.ndarray, stimulus: jnp.ndarray):
     pyy = jnp.abs(fft_pyy) ** 2
 
     fft_pxy = fft_pxx * jnp.conj(fft_pyy)
-    pxy = fft_pxy / tau
-
+    pxy = fft_pxy
     return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
 
 
@@ -83,4 +81,4 @@ def spectral_scipy(config: SimulationConfig, spikes: jnp.ndarray, stimulus):
         noverlap=None,
     )
 
-    return f, pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
+    return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)

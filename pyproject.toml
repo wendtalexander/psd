@@ -15,3 +15,10 @@ dependencies = [
     "scipy>=1.16.3",
 ]
 
+[project.optional-dependencies]
+cuda13 = [
+    "jaxon",
+]
+
+[tool.uv.sources]
+jaxon = { git = "https://github.com/wendtalexander/jaxon.git" }

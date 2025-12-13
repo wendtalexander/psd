@@ -739,6 +739,15 @@ wheels = [
 ]
 
 [[package]]
+name = "jaxon"
+version = "0.1.0"
+source = { git = "https://github.com/wendtalexander/jaxon.git#46e83ad0b2af04f80b28a359be302b1ad2623aa9" }
+dependencies = [
+    { name = "jax" },
+    { name = "numpy" },
+]
+
+[[package]]
 name = "jedi"
 version = "0.19.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1790,9 +1799,15 @@ dependencies = [
     { name = "scipy" },
 ]
 
+[package.optional-dependencies]
+cuda13 = [
+    { name = "jaxon" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "jax", extras = ["cuda13"], specifier = ">=0.8.1" },
+    { name = "jaxon", marker = "extra == 'cuda13'", git = "https://github.com/wendtalexander/jaxon.git" },
     { name = "jupyter", specifier = ">=1.1.1" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "nixio", specifier = ">=1.5.4" },
@@ -1801,6 +1816,7 @@ requires-dist = [
     { name = "rich", specifier = ">=14.2.0" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
+provides-extras = ["cuda13"]
 
 [[package]]
 name = "psutil"

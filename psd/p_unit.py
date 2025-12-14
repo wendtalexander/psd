@@ -69,14 +69,14 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
 
         spectral_fft = SpectralResults.zeros(config.nperseg, config.fs, oneside=False)
         spectral_welch = SpectralResults.zeros(config.nperseg, config.fs)
-        spectral_convolved_spikes_fft = SpectralResults.zeros(config.nperseg, config.fs)
+        spectral_convolved_spikes_fft = SpectralResults.zeros(
+            config.nperseg, config.fs, oneside=False
+        )
         spectral_convolved_spikes_welch_segments = SpectralResults.zeros(
             config.nperseg, config.fs
         )
 
-        for batch in track(
-            jnp.arange(0, config.trials, config.batch_size), description="Contrast"
-        ):
+        for batch in jnp.arange(0, config.trials, config.batch_size):
             wh = white_noise(
                 keys[0, con, batch : batch + config.batch_size, :],
                 config.wh_low,
@@ -159,7 +159,7 @@ def main() -> None:
         if not savepath.exists():
             savepath.mkdir(parents=True, exist_ok=True)
 
-        nix_files: list[Path] = savepath.rglob("*.nix")
+        nix_files = savepath.rglob("*.nix")
         for nix_file in nix_files:
             if nix_file.is_file():
                 log.debug("Found nix File deleting it")

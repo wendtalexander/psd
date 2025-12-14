@@ -18,7 +18,7 @@ class SpectralResults:
     time: jnp.ndarray
 
     @classmethod
-    def zeros(cls, nperseg: float, fs: float, oneside: bool = True):
+    def zeros(cls, nperseg: int, fs: float, oneside: bool = True):
         n_freqs = (nperseg // 2) + 1
         f = jnp.fft.rfftfreq(nperseg, d=1 / fs)
         n_freqs = f.shape[0]

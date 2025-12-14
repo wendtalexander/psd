@@ -5,7 +5,8 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "jax[cuda13]>=0.8.1",
+    "jax>=0.8.1 ; sys_platform == 'darwin'",
+    "jaxon",
     "jupyter>=1.1.1",
     "matplotlib>=3.10.8",
     "nixio>=1.5.4",
@@ -15,10 +16,6 @@ dependencies = [
     "scipy>=1.16.3",
 ]
 
-[project.optional-dependencies]
-cuda13 = [
-    "jaxon",
-]
-
 [tool.uv.sources]
-jaxon = { git = "https://github.com/wendtalexander/jaxon.git" }
+jaxon = { git = "https://github.com/wendtalexander/jaxon" }
+

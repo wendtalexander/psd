@@ -3,7 +3,7 @@ import jax.scipy as jsp
 from IPython import embed
 from scipy import signal
 
-from psd.p_unit import SimulationConfig
+from psd.p_unit_jax import SimulationConfig
 
 
 def welch_segments(config: SimulationConfig, spikes: jnp.ndarray, stimulus):

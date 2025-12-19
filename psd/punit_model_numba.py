@@ -1,0 +1,82 @@
+import numpy as np
+from numba import njit
+
+
+@njit
+def simulate(
+    stimulus,
+    deltat=0.00005,
+    v_zero=0.0,
+    a_zero=2.0,
+    threshold=1.0,
+    v_base=0.0,
+    delta_a=0.08,
+    tau_a=0.1,
+    v_offset=-10.0,
+    mem_tau=0.015,
+    noise_strength=0.05,
+    input_scaling=60.0,
+    dend_tau=0.001,
+    ref_period=0.001,
+    power=1.0,
+):
+    """Simulate a P-unit.
+
+    Parameters
+    ----------
+    stimulus: array of float
+
+        The stimulus. This is the EOD (sinewave with EOD frequency
+        `EODf` frequency of the model parameters and amplitude of one)
+        with amplitude modulation or additional signals.
+        Samples need to be spaced by `deltat`.
+    deltat: float
+        S=Time step used for integrating the model.
+    **kwargs: dict
+        The model parameters.
+
+    Returns
+    -------
+    spike_times: 1-D array
+        Simulated spike times in seconds.
+    """
+    # initial conditions:
+    v_dend = stimulus[0]
+    v_mem = v_zero
+    adapt = a_zero
+
+    # prepare noise:
+    # noise_strength = np.sqrt(noise_strength * 2)   ## addition by Sascha for models*big.csv
+    noise = np.random.randn(len(stimulus))
+    noise *= noise_strength / np.sqrt(deltat)
+
+    # rectify stimulus array:
+    stimulus = stimulus.copy()
+    stimulus[stimulus < 0.0] = 0.0
+    stimulus **= power
+
+    # integrate:
+    spike_times = []
+    for i, (s, n) in enumerate(zip(stimulus, noise)):
+        v_dend += (-v_dend + s) / dend_tau * deltat
+        v_mem += (
+            (v_base - v_mem + v_offset + (v_dend * input_scaling) - adapt + n)
+            / mem_tau
+            * deltat
+        )
+        adapt += -adapt / tau_a * deltat
+
+        # refractory period:
+        if (
+            len(spike_times) > 0
+            and (deltat * i) - spike_times[-1] < ref_period + deltat / 2
+        ):
+            v_mem = v_base
+
+        # threshold crossing:
+        if v_mem > threshold:
+            v_mem = v_base
+            spike_times.append(i * deltat)
+            adapt += delta_a / tau_a
+
+    return np.array(spike_times)

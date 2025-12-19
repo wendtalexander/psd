@@ -1,0 +1,74 @@
+---
+title: Rate FFT
+---
+
+```{python}
+
+import pathlib
+
+import nixio
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+method = "rate_fft"
+datafolder = pathlib.Path("../psd/data/jax/2010-11-08-al-invivo-1/")
+dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
+
+contrast = 0.1
+nix_file = nixio.File.open(str(dataset_methods[0]), "r")
+block = nix_file.blocks[0]
+das = block.data_arrays
+pxx = das[f"{method}_pxx_contrast_{contrast}"][:]
+pyy = das[f"{method}_pyy_contrast_{contrast}"][:]
+pxy = das[f"{method}_pxy_contrast_{contrast}"][:]
+coherence = das[f"{method}_coherence_contrast_{contrast}"][:]
+transfer = das[f"{method}_transfer_contrast_{contrast}"][:]
+f = das["f"][:]
+```
+
+```{python}
+# | output: false
+
+fig = make_subplots(
+    6,
+    2,
+    specs=[
+        [{"rowspan": 2}, {"rowspan": 3}],
+        [None, None],
+        [{"rowspan": 2}, None],
+        [None, {"rowspan": 3}],
+        [{"rowspan": 2}, None],
+        [None, None],
+    ],
+    shared_xaxes="all",
+)
+fig.add_trace(go.Scattergl(x=f, y=pyy, mode="markers+lines", name="pyy"), row=1, col=1)
+fig.add_trace(go.Scattergl(x=f, y=pxx, mode="markers+lines", name="pxx"), row=3, col=1)
+fig.add_trace(
+    go.Scattergl(x=f, y=np.abs(pxy), mode="markers+lines", name="pxy"), row=5, col=1
+)
+fig.add_trace(
+    go.Scattergl(x=f, y=coherence, mode="markers+lines", name="coherence"), row=1, col=2
+)
+fig.add_trace(
+    go.Scattergl(x=f, y=transfer, mode="markers+lines", name="transfer"), row=4, col=2
+)
+fig.update_xaxes(range=[-350, 350])
+fig.update_yaxes(type="log", row=1, col=1)
+fig.update_yaxes(type="log", row=3, col=1)
+fig.update_yaxes(type="log", row=5, col=1)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+fig.update_layout(
+    height=600,
+    width=600,
+)
+fig.update_layout(template="plotly_white")
+display(fig)
+fig.update_layout(template="plotly_dark")
+display(fig)
+```

@@ -10,10 +10,16 @@ dependencies = [
     "jupyter>=1.1.1",
     "matplotlib>=3.10.8",
     "nixio>=1.5.4",
+    "numba>=0.63.1",
     "numpy>=2.3.5",
     "plotly>=6.5.0",
     "rich>=14.2.0",
     "scipy>=1.16.3",
+]
+
+[project.optional-dependencies]
+cuda13 = [
+    "jax[cuda13]>=0.8.1",
 ]
 
 [tool.uv.sources]

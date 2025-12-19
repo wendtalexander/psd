@@ -16,9 +16,10 @@ class SpectralResults:
     transfer: jnp.ndarray
     f: jnp.ndarray
     time: jnp.ndarray
+    name: str
 
     @classmethod
-    def zeros(cls, nperseg: int, fs: float, oneside: bool = True):
+    def zeros(cls, nperseg: int, fs: float, name: str, oneside: bool = True):
         n_freqs = (nperseg // 2) + 1
         f = jnp.fft.rfftfreq(nperseg, d=1 / fs)
         n_freqs = f.shape[0]
@@ -36,6 +37,7 @@ class SpectralResults:
             rates=jnp.zeros(nperseg),
             f=f,
             time=time,
+            name=name,
         )
 
     def norm(self, trials):
@@ -61,7 +63,7 @@ class SpectralResults:
         transfer = jnp.abs(self.pxys / self.pyys)
         return replace(self, coherence=coherence, transfer=transfer)
 
-    def save(self, config, contrast, label="fft"):
+    def save(self, config, contrast):
         das = [
             self.pyys,
             self.pxxs,
@@ -73,12 +75,12 @@ class SpectralResults:
             self.time,
         ]
         das_names = [
-            f"{label}_pyy_contrast_{contrast}",
-            f"{label}_pxx_contrast_{contrast}",
-            f"{label}_pxy_contrast_{contrast}",
-            f"{label}_rate_contrast_{contrast}",
-            f"{label}_coherence_contrast_{contrast}",
-            f"{label}_transfer_contrast_{contrast}",
+            f"{self.name}_pyy_contrast_{contrast}",
+            f"{self.name}_pxx_contrast_{contrast}",
+            f"{self.name}_pxy_contrast_{contrast}",
+            f"{self.name}_rate_contrast_{contrast}",
+            f"{self.name}_coherence_contrast_{contrast}",
+            f"{self.name}_transfer_contrast_{contrast}",
             "f",
             "time",
         ]
@@ -92,7 +94,7 @@ class SpectralResults:
             "f",
             "time",
         ]
-        name = label + "_" + config.save_path.name + ".nix"
+        name = self.name + "_" + config.save_path.name + ".nix"
         nix_file_name = config.save_path / name
 
         with nixio.File(str(nix_file_name), "a") as file:

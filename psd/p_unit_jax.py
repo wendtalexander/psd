@@ -1,48 +1,26 @@
 import gc
 import logging
 import sys
-from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import jax
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
-import nixio
 from IPython.terminal.embed import embed
 from jaxon import dsp
 from jaxon.models import punit
 from jaxon.params import load
 from jaxon.stimuli.noise import whitenoise
-from nixio.exceptions import DuplicateName
 from rich.progress import track
 
 from psd import spectral_methods
+from psd.sim_config import SimulationConfig
 from psd.utils import setup_rich
 from psd.utils.general import find_project_root
 from psd.utils.logging import setup_logging
 from psd.utils.spectral import SpectralResults
-from psd.utils.white_noise import whitenoise as whitenoise_jan
 
 log = logging.getLogger(__name__)
 setup_logging(log)
-
-
-@dataclass
-class SimulationConfig:
-    save_path: Path
-    cell: str
-    eodf: float
-    duration: float = 2
-    trials: int = 100_000
-    contrasts: list[float] = field(default_factory=lambda: [0.1])
-    batch_size: int = 2000
-    nperseg: int = 2**15
-    fs: int = 30_000
-    jax_key: int = 42
-    wh_low: float = 0.0
-    wh_high: float = 300.0
-    sigma: float = 0.001
-    ktime: float = 4
 
 
 def simulation(config: SimulationConfig, params: punit.PUnitParams):
@@ -67,16 +45,23 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
     for con, contrast in enumerate(config.contrasts):
         f = jnp.fft.rfftfreq(config.nperseg)
 
-        spectral_fft = SpectralResults.zeros(config.nperseg, config.fs, oneside=False)
-        spectral_welch = SpectralResults.zeros(config.nperseg, config.fs)
+        spectral_fft = SpectralResults.zeros(
+            config.nperseg, config.fs, name="fft", oneside=False
+        )
+        spectral_welch = SpectralResults.zeros(
+            config.nperseg, config.fs, name="welch_segments"
+        )
         spectral_convolved_spikes_fft = SpectralResults.zeros(
-            config.nperseg, config.fs, oneside=False
+            config.nperseg, config.fs, name="rate_fft", oneside=False
         )
         spectral_convolved_spikes_welch_segments = SpectralResults.zeros(
-            config.nperseg, config.fs
+            config.nperseg, config.fs, name="rate_welch_segments"
         )
 
-        for batch in jnp.arange(0, config.trials, config.batch_size):
+        # for batch in jnp.arange(0, config.trials, config.batch_size):
+        for batch in track(
+            jnp.arange(0, config.trials, config.batch_size), description="Batches"
+        ):
             wh = white_noise(
                 keys[0, con, batch : batch + config.batch_size, :],
                 config.wh_low,
@@ -106,7 +91,7 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
             pyy, pxx, pxy = spectral_methods.fft(config, spikes, wh)
             spectral_fft = spectral_fft.update(pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum)
 
-            pyy, pxx, pyy = spectral_methods.fft(config, rate, wh)
+            pyy, pxx, pxy = spectral_methods.fft(config, rate, wh)
             spectral_convolved_spikes_fft = spectral_convolved_spikes_fft.update(
                 pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum
             )
@@ -116,37 +101,23 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
                 pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum
             )
 
-            pyy, pxx, pyy = spectral_methods.welch_segments(config, rate, wh)
+            pyy, pxx, pxy = spectral_methods.welch_segments(config, rate, wh)
             spectral_convolved_spikes_welch_segments = (
-                spectral_convolved_spikes_fft.update(
+                spectral_convolved_spikes_welch_segments.update(
                     pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum
                 )
             )
 
-        spectral_fft = spectral_fft.norm(config.trials)
-        spectral_welch = spectral_welch.norm(config.trials)
-        spectral_convolved_spikes_fft = spectral_convolved_spikes_fft.norm(
-            config.trials
-        )
-        spectral_convolved_spikes_welch_segments = (
-            spectral_convolved_spikes_welch_segments.norm(config.trials)
-        )
-
-        spectral_fft = spectral_fft.coherence_and_transfer()
-        spectral_welch = spectral_welch.coherence_and_transfer()
-        spectral_convolved_spikes_fft = (
-            spectral_convolved_spikes_fft.coherence_and_transfer()
-        )
-        spectral_convolved_spikes_welch_segments = (
-            spectral_convolved_spikes_welch_segments.coherence_and_transfer()
-        )
-
-        spectral_fft.save(config, contrast, "fft")
-        spectral_welch.save(config, contrast, "welch_segments")
-        spectral_convolved_spikes_fft.save(config, contrast, "rate_fft")
-        spectral_convolved_spikes_welch_segments.save(
-            config, contrast, "rate_welch_segments"
-        )
+        methods = [
+            spectral_fft,
+            spectral_welch,
+            spectral_convolved_spikes_welch_segments,
+            spectral_convolved_spikes_fft,
+        ]
+        for i, method in enumerate(methods):
+            m = method.norm(config.trials)
+            m = m.coherence_and_transfer()
+            m.save(config, contrast)
 
         gc.collect()
 
@@ -154,7 +125,7 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
 def main() -> None:
     models: list[punit.PUnitParams] = load.punit_params()
     for model in models:
-        savepath: Path = find_project_root() / "data" / "methods" / model.cell
+        savepath: Path = find_project_root() / "data" / "jax" / model.cell
 
         if not savepath.exists():
             savepath.mkdir(parents=True, exist_ok=True)

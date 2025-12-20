@@ -15,8 +15,8 @@ from jaxon.stimuli.noise import whitenoise
 from rich.progress import track
 
 from psd import spectral_methods
-from psd.punit_model_numba import simulate
-from psd.sim_config import SimulationConfig
+from psd.punit.punit_model_numba import simulate
+from psd.punit.sim_config import SimulationConfig
 from psd.utils import setup_rich
 from psd.utils.general import find_project_root
 from psd.utils.logging import setup_logging
@@ -116,7 +116,7 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
 def main() -> None:
     models: list[punit.PUnitParams] = load.punit_params()
     for model in models:
-        savepath: Path = find_project_root() / "data" / "numba" / model.cell
+        savepath: Path = find_project_root() / "data" / "punit" / "numba" / model.cell
 
         if not savepath.exists():
             savepath.mkdir(parents=True, exist_ok=True)

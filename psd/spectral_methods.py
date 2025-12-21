@@ -1,5 +1,5 @@
 import pathlib
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, fields, replace
 
 import jax.numpy as jnp
 import jax.scipy as jsp
@@ -9,27 +9,46 @@ from nixio.exceptions import DuplicateName
 
 @dataclass
 class SpectralResults:
-    pxxs: jnp.ndarray
-    pyys: jnp.ndarray
-    pxys: jnp.ndarray
-    rates: jnp.ndarray
-    coherence: jnp.ndarray
-    transfer: jnp.ndarray
-    f: jnp.ndarray
-    time: jnp.ndarray
-    name: str
+    pxxs: jnp.ndarray = field(
+        metadata={"nix_name": "pxx", "nix_type": "spike.power.spectra"}
+    )
+    pyys: jnp.ndarray = field(
+        metadata={"nix_name": "pyy", "nix_type": "stimulus.power.spectra"}
+    )
+
+    pxys: jnp.ndarray = field(
+        metadata={"nix_name": "pxy", "nix_type": "cross.power.spectra"}
+    )
+
+    rates: jnp.ndarray = field(
+        metadata={"nix_name": "mean_rate", "nix_type": "spike.mean.rate"}
+    )
+    coherence: jnp.ndarray = field(
+        metadata={"nix_name": "coherence", "nix_type": "coherence.stimulus.spikes"}
+    )
+
+    transfer: jnp.ndarray = field(
+        metadata={"nix_name": "transfer", "nix_type": "transfer.stimulus.spikes"}
+    )
+
+    f: jnp.ndarray = field(
+        metadata={"nix_name": "frequency", "nix_type": "frequency.spectra"}
+    )
+
+    time: jnp.ndarray = field(metadata={"nix_name": "time", "nix_type": "time.rate"})
+
+    name: str = "fft"
 
     @classmethod
     def zeros(
         cls, nperseg: int, fs: float, name: str, negative_frequencies: bool = False
     ):
-        n_freqs = (nperseg // 2) + 1
-        f = jnp.fft.rfftfreq(nperseg, d=1 / fs)
+        if negative_frequencies:
+            f = jnp.fft.fftfreq(nperseg, d=1 / fs)  # fft
+        else:
+            f = jnp.fft.rfftfreq(nperseg, d=1 / fs)  # rfft
         n_freqs = f.shape[0]
         time = jnp.arange(nperseg) / fs
-        if negative_frequencies:
-            f = jnp.fft.fftfreq(nperseg, d=1 / fs)
-            n_freqs = f.shape[0]
 
         return cls(
             pxxs=jnp.zeros(n_freqs),
@@ -66,39 +85,9 @@ class SpectralResults:
         transfer = jnp.abs(self.pxys / self.pyys)
         return replace(self, coherence=coherence, transfer=transfer)
 
-    def save(self, config, contrast):
-        das = [
-            self.pyys,
-            self.pxxs,
-            self.pxys,
-            self.rates,
-            self.coherence,
-            self.transfer,
-            self.f,
-            self.time,
-        ]
-        das_names = [
-            f"{self.name}_pyy_contrast_{contrast}",
-            f"{self.name}_pxx_contrast_{contrast}",
-            f"{self.name}_pxy_contrast_{contrast}",
-            f"{self.name}_rate_contrast_{contrast}",
-            f"{self.name}_coherence_contrast_{contrast}",
-            f"{self.name}_transfer_contrast_{contrast}",
-            "f",
-            "time",
-        ]
-        das_type = [
-            "stimulus.power.spectrum",
-            "spikes.power.spectra",
-            "cross.power.spectra",
-            "mean.rate",
-            "coherence",
-            "transfer",
-            "f",
-            "time",
-        ]
-        name = self.name + "_" + config.save_path.name + ".nix"
-        nix_file_name = config.save_path / name
+    def save(self, savepath: pathlib.Path, contrast: float):
+        name = self.name + "_" + savepath.name + ".nix"
+        nix_file_name = savepath / name
 
         with nixio.File(str(nix_file_name), "a") as file:
             try:
@@ -106,17 +95,24 @@ class SpectralResults:
             except DuplicateName:
                 block = file.blocks["result"]
 
-            for arr in range(len(das_names)):
-                block.create_data_array(das_names[arr], das_type[arr], data=das[arr])
+            for f in fields(self):
+                meta = f.metadata
+                # dont save the name
+                if "nix_type" not in meta:
+                    continue
+                da_name = f"{meta['nix_name']}_contrast_{contrast}"
+                da = getattr(self, f.name)
+                block.create_data_array(da_name, meta["nix_type"], data=da)
 
 
 @dataclass
 class Config:
     nperseg: int
     fs: float
-    savepath: str | pathlib.Path
+    savepath: pathlib.Path
     sigma: float  # sigma Gaus
     ktime: float  # kernel time
+    trials: int
 
 
 @dataclass(frozen=True)
@@ -164,12 +160,9 @@ class SpectralMethods:
         spectral_result: list[SpectralResults] = []
         for i, method in enumerate(self.methods):
             reg = self._REGISTRY[method]
-            method_func = getattr(self, reg.func_name)
 
-            if reg.use_rate:
-                pxx, pyy, pxy = method_func(rate, stimulus)
-            else:
-                pxx, pyy, pxy = method_func(spikes, stimulus)
+            signal = rate if reg.use_rate else spikes
+            pxx, pyy, pxy = getattr(self, reg.func_name)(signal, stimulus)
 
             res = self.spectral_results[i].update(pxx, pyy, pxy, rate)
             spectral_result.append(res)
@@ -177,13 +170,20 @@ class SpectralMethods:
         self.spectral_results = spectral_result
 
     def norm(self) -> None:
-        pass
+        spectral_result: list[SpectralResults] = []
+        for result in self.spectral_results:
+            spectral_result.append(result.norm(self.config.trials))
+        self.spectral_results = spectral_result
 
     def coherence_and_transfer(self) -> None:
-        pass
+        spectral_result: list[SpectralResults] = []
+        for result in self.spectral_results:
+            spectral_result.append(result.coherence_and_transfer())
+        self.spectral_results = spectral_result
 
-    def save(self) -> None:
-        pass
+    def save(self, contrast) -> None:
+        for result in self.spectral_results:
+            result.save(self.config.savepath, contrast)
 
     def welch_segments(self, spikes: jnp.ndarray, stimulus):
         spikes = spikes[:, -self.config.nperseg :]
@@ -228,4 +228,44 @@ class SpectralMethods:
 
         fft_pxy = fft_pxx * jnp.conj(fft_pyy)
         pxy = fft_pxy
+        return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
+
+    def fft_without_mean_substraction(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):
+        spikes = spikes[:, -self.config.nperseg :]
+        stimulus = stimulus[:, -self.config.nperseg :]
+
+        dt = 1 / self.config.fs
+        fft_pxx = jnp.fft.fft(spikes) * dt
+        pxx = jnp.abs(fft_pxx) ** 2
+
+        fft_pyy = jnp.fft.fft(stimulus) * dt
+        pyy = jnp.abs(fft_pyy) ** 2
+
+        fft_pxy = fft_pxx * jnp.conj(fft_pyy)
+        pxy = fft_pxy
+        return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
+
+    def welch(self, spikes: jnp.ndarray, stimulus):
+        spikes = spikes[:, -self.config.nperseg :]
+        stimulus = stimulus[:, -self.config.nperseg :]
+        _, pyy = jsp.signal.welch(
+            stimulus,
+            fs=self.config.fs,
+            nperseg=self.config.nperseg,
+            noverlap=self.config.nperseg // 2,
+        )
+        _, pxx = jsp.signal.welch(
+            spikes - jnp.mean(spikes, axis=1, keepdims=True),
+            fs=self.config.fs,
+            nperseg=self.config.nperseg,
+            noverlap=self.config.nperseg // 2,
+        )
+        _, pxy = jsp.signal.csd(
+            spikes - jnp.mean(spikes, axis=1, keepdims=True),
+            stimulus,
+            fs=self.config.fs,
+            nperseg=self.config.nperseg,
+            noverlap=self.config.nperseg // 2,
+        )
+
         return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)

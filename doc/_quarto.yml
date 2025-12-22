@@ -44,10 +44,22 @@ website:
         href: "index.qmd"
       - section: "P-Unit"
         contents:
-          - "punit_fft.qmd"
-          - "punit_welch.qmd"
-          - "punit_rate_fft.qmd"
-          - "punit_rate_welch.qmd"
+          - section: "Different Methods"
+            contents:
+            - "punit_fft.qmd"
+            - "punit_welch.qmd"
+            - "punit_rate_fft.qmd"
+            - "punit_rate_welch.qmd"
+          - "punit_vdent_fft.qmd"
+          - "punit_wihtout_adaptation_fft.qmd"
+          - "punit_wihtout_refperiod_fft.qmd"
+
+      - section: "LIF"
+        contents:
+          - "lif_fft.qmd"
+          - "lif_welch.qmd"
+          - "lif_rate_fft.qmd"
+          - "lif_rate_welch.qmd"
 
 
 execute:

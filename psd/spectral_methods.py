@@ -8,6 +8,24 @@ from nixio.exceptions import DuplicateName
 
 
 @dataclass
+class Config:
+    savepath: pathlib.Path
+    cell: str
+    eodf: float
+    duration: float = 2
+    trials: int = 10_000
+    contrasts: list[float] = field(default_factory=lambda: [0.1])
+    batch_size: int = 2000
+    nperseg: int = 2**15
+    fs: int = 30_000
+    jax_key: int = 42
+    wh_low: float = 0.0
+    wh_high: float = 300.0
+    sigma: float = 0.001
+    ktime: float = 4
+
+
+@dataclass
 class SpectralResults:
     pxxs: jnp.ndarray = field(
         metadata={"nix_name": "pxx", "nix_type": "spike.power.spectra"}
@@ -97,22 +115,13 @@ class SpectralResults:
 
             for f in fields(self):
                 meta = f.metadata
+                print(meta)
                 # dont save the name
                 if "nix_type" not in meta:
                     continue
                 da_name = f"{meta['nix_name']}_contrast_{contrast}"
                 da = getattr(self, f.name)
                 block.create_data_array(da_name, meta["nix_type"], data=da)
-
-
-@dataclass
-class Config:
-    nperseg: int
-    fs: float
-    savepath: pathlib.Path
-    sigma: float  # sigma Gaus
-    ktime: float  # kernel time
-    trials: int
 
 
 @dataclass(frozen=True)
@@ -130,7 +139,7 @@ class SpectralMethods:
         "rate_welch_segments": MethodInfo("welch_segments", False, True),
     }
 
-    def __init__(self, config: Config, methods: list[str] | None) -> None:
+    def __init__(self, config: Config, methods: list[str] | None = None) -> None:
         self.config = config
 
         if methods is None:
@@ -162,9 +171,8 @@ class SpectralMethods:
             reg = self._REGISTRY[method]
 
             signal = rate if reg.use_rate else spikes
-            pxx, pyy, pxy = getattr(self, reg.func_name)(signal, stimulus)
-
-            res = self.spectral_results[i].update(pxx, pyy, pxy, rate)
+            pyy, pxx, pxy = getattr(self, reg.func_name)(signal, stimulus)
+            res = self.spectral_results[i].update(pxx, pyy, pxy, rate.sum(axis=0))
             spectral_result.append(res)
 
         self.spectral_results = spectral_result
@@ -226,8 +234,7 @@ class SpectralMethods:
         fft_pyy = jnp.fft.fft(stimulus) * dt
         pyy = jnp.abs(fft_pyy) ** 2
 
-        fft_pxy = fft_pxx * jnp.conj(fft_pyy)
-        pxy = fft_pxy
+        pxy = fft_pxx * jnp.conj(fft_pyy)
         return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
 
     def fft_without_mean_substraction(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):

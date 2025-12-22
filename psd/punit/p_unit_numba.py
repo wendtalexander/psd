@@ -1,7 +1,7 @@
 import gc
 import logging
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import jax
@@ -11,24 +11,21 @@ from IPython.terminal.embed import embed
 from jaxon import dsp
 from jaxon.models import punit
 from jaxon.params import load
-from jaxon.stimuli.noise import whitenoise
 from rich.progress import track
 
-from psd import spectral_methods
 from psd.punit.punit_model_numba import simulate
-from psd.punit.sim_config import SimulationConfig
+from psd.spectral_methods import Config, SpectralMethods
 from psd.utils import setup_rich
 from psd.utils.general import find_project_root
 from psd.utils.logging import setup_logging
-from psd.utils.spectral import SpectralResults
 from psd.utils.white_noise import whitenoise as whitenoise_jan
 
 log = logging.getLogger(__name__)
 setup_logging(log)
 
 
-def simulation(config: SimulationConfig, params: punit.PUnitParams):
-    log.debug(f"Processing nix File {config.save_path.name}")
+def simulation(config: Config, params: punit.PUnitParams):
+    log.debug(f"Processing nix File {config.savepath.name}")
     spike_rate = jax.vmap(jax.jit(dsp.rate.spike_rate), in_axes=[0, None])
     ktime = jnp.arange(
         -config.ktime * config.sigma, config.ktime * config.sigma, 1 / config.fs
@@ -41,20 +38,7 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
     params.pop("EODf")
 
     for con, contrast in enumerate(config.contrasts):
-        f = jnp.fft.rfftfreq(config.nperseg)
-
-        spectral_fft = SpectralResults.zeros(
-            config.nperseg, config.fs, name="fft", oneside=False
-        )
-        spectral_welch = SpectralResults.zeros(
-            config.nperseg, config.fs, name="welch_segments"
-        )
-        spectral_convolved_spikes_fft = SpectralResults.zeros(
-            config.nperseg, config.fs, name="rate_fft", oneside=False
-        )
-        spectral_convolved_spikes_welch_segments = SpectralResults.zeros(
-            config.nperseg, config.fs, name="rate_welch_segments"
-        )
+        sm = SpectralMethods(config)
 
         for trial in track(range(config.trials), description="Trials"):
             wh = whitenoise_jan(
@@ -65,7 +49,6 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
             )[:-1]
 
             stimulus = baseline + (baseline * (wh * contrast))
-            # with jax.default_device(cpu_device):
 
             spikes_numba = simulate(stimulus, **params)
             spikes = np.zeros_like(time)
@@ -77,40 +60,11 @@ def simulation(config: SimulationConfig, params: punit.PUnitParams):
             wh = wh[np.newaxis, :]
 
             rate = spike_rate(spikes[:, -config.nperseg :], kernel)
-            rate_sum = rate.sum(axis=0)
+            sm.update(spikes, wh, rate)
 
-            pyy, pxx, pxy = spectral_methods.fft(config, spikes, wh)
-            spectral_fft = spectral_fft.update(pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum)
-
-            pyy, pxx, pxy = spectral_methods.fft(config, rate, wh)
-            spectral_convolved_spikes_fft = spectral_convolved_spikes_fft.update(
-                pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum
-            )
-
-            pyy, pxx, pxy = spectral_methods.welch_segments(config, spikes, wh)
-            spectral_welch = spectral_welch.update(
-                pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum
-            )
-
-            pyy, pxx, pxy = spectral_methods.welch_segments(config, rate, wh)
-            spectral_convolved_spikes_welch_segments = (
-                spectral_convolved_spikes_welch_segments.update(
-                    pyy=pyy, pxx=pxx, pxy=pxy, rate=rate_sum
-                )
-            )
-
-        methods = [
-            spectral_fft,
-            spectral_welch,
-            spectral_convolved_spikes_welch_segments,
-            spectral_convolved_spikes_fft,
-        ]
-        for i, method in enumerate(methods):
-            m = method.norm(config.trials)
-            m = m.coherence_and_transfer()
-            m.save(config, contrast)
-
-        gc.collect()
+        sm.norm()
+        sm.coherence_and_transfer()
+        sm.save(contrast)
 
 
 def main() -> None:
@@ -126,7 +80,7 @@ def main() -> None:
             if nix_file.is_file():
                 log.debug("Found nix File deleting it")
                 nix_file.unlink()
-        config = SimulationConfig(save_path=savepath, cell=model.cell, eodf=model.EODf)
+        config = Config(savepath=savepath, cell=model.cell, eodf=model.EODf)
         model.deltat = 1 / config.fs
         simulation(config, model)
         sys.exit()

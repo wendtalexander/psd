@@ -1,0 +1,33 @@
+---
+title: Rate FFT
+---
+
+```{python}
+
+import pathlib
+
+import nixio
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from plots import comparision, spectral
+
+method = "rate_fft"
+datafolder = pathlib.Path("../psd/data/lif/")
+dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
+fig = spectral(dataset_methods)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+fig.update_layout(
+    height=600,
+    width=600,
+)
+fig.update_layout(template="plotly_white")
+display(fig)
+fig.update_layout(template="plotly_dark")
+display(fig)
+```
+

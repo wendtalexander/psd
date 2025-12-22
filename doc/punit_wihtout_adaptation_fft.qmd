@@ -1,5 +1,5 @@
 ---
-title: FFT
+title: P-Unit without adaptation
 ---
 
 ```{python}
@@ -8,15 +8,17 @@ title: FFT
 import pathlib
 
 import nixio
-import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from plots import comparision, spectral
+from plots import comparision, rate, spectral
+
 
 method = "fft"
 contrast = 0.1
-datafolder = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
+cell_id = 0
+datafolder = pathlib.Path("../psd/data/punit/without_adaptation/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
+
 fig = spectral(dataset_methods, contrast=contrast, negative_frequencies=True)
 ```
 
@@ -29,25 +31,44 @@ fig.update_layout(
 )
 fig.update_layout(template="plotly_white")
 display(fig)
+
 fig.update_layout(template="plotly_dark")
 display(fig)
 ```
 
-## JAX vs numba
+## 1.Rate
+```{python}
+# | output: false
+fig = rate(dataset_methods, contrast=contrast)
+```
+
 
 ```{python}
 # | echo: false
-# | output : false
+# | renderings: [light, dark]
+fig.update_layout(
+    height=600,
+    width=600,
+)
+fig.update_layout(template="plotly_white")
+display(fig)
 
-datafolder_jax = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
-datafolder_numba = pathlib.Path("../psd/data/punit/numba/2010-11-08-al-invivo-1/")
-dataset_methods_jax = sorted(datafolder_jax.rglob(f"{method}*.nix"))
-dataset_methods_numba = sorted(datafolder_numba.rglob(f"{method}*.nix"))
+fig.update_layout(template="plotly_dark")
+display(fig)
+```
+
+## 2. Comparision to original
+
+```{python}
+# | output: false
+datafolder = pathlib.Path("../psd/data/punit/jax/")
+dataset_methods_org = sorted(datafolder.rglob(f"{method}*.nix"))
 fig = comparision(
-    dataset_methods_jax,
-    dataset_methods_numba,
-    negative_frequencies=True,
+    dataset_methods,
+    dataset_methods_org,
     contrast=contrast,
+    negative_frequencies=True,
+    names=["adaptation", "org"],
 )
 ```
 
@@ -60,6 +81,12 @@ fig.update_layout(
 )
 fig.update_layout(template="plotly_white")
 display(fig)
+
 fig.update_layout(template="plotly_dark")
 display(fig)
+```
+
+```{python}
+# | output: false
+fig = rate(dataset_methods, contrast=contrast)
 ```

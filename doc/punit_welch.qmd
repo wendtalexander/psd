@@ -11,12 +11,13 @@ import nixio
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from plots import jax_vs_numba, spectral
+from plots import comparision, spectral
 
 method = "welch_segments"
+contrast = 0.1
 datafolder = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
-fig = spectral(dataset_methods)
+fig = spectral(dataset_methods, contrast=contrast)
 ```
 
 ```{python}
@@ -42,7 +43,7 @@ datafolder_jax = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
 datafolder_numba = pathlib.Path("../psd/data/punit/numba/2010-11-08-al-invivo-1/")
 dataset_methods_jax = sorted(datafolder_jax.rglob(f"{method}*.nix"))
 dataset_methods_numba = sorted(datafolder_numba.rglob(f"{method}*.nix"))
-fig = jax_vs_numba(dataset_methods_jax, dataset_methods_numba)
+fig = comparision(dataset_methods_jax, dataset_methods_numba, contrast=contrast)
 ```
 
 ```{python}

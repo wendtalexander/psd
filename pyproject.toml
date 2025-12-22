@@ -13,6 +13,7 @@ dependencies = [
     "numba>=0.63.1",
     "numpy>=2.3.5",
     "plotly>=6.5.0",
+    "pyqt6>=6.10.1",
     "rich>=14.2.0",
     "scipy>=1.16.3",
 ]

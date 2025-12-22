@@ -10,8 +10,8 @@ from nixio.exceptions import DuplicateName
 @dataclass
 class Config:
     savepath: pathlib.Path
-    cell: str
-    eodf: float
+    cell: str | None = None
+    eodf: float | None = None
     duration: float = 2
     trials: int = 10_000
     contrasts: list[float] = field(default_factory=lambda: [0.1])
@@ -103,7 +103,7 @@ class SpectralResults:
         transfer = jnp.abs(self.pxys / self.pyys)
         return replace(self, coherence=coherence, transfer=transfer)
 
-    def save(self, savepath: pathlib.Path, contrast: float):
+    def save(self, savepath: pathlib.Path, contrast: float | None):
         name = self.name + "_" + savepath.name + ".nix"
         nix_file_name = savepath / name
 
@@ -115,11 +115,13 @@ class SpectralResults:
 
             for f in fields(self):
                 meta = f.metadata
-                print(meta)
                 # dont save the name
                 if "nix_type" not in meta:
                     continue
-                da_name = f"{meta['nix_name']}_contrast_{contrast}"
+                if contrast:
+                    da_name = f"{meta['nix_name']}_contrast_{contrast}"
+                else:
+                    da_name = f"{meta['nix_name']}"
                 da = getattr(self, f.name)
                 block.create_data_array(da_name, meta["nix_type"], data=da)
 
@@ -189,7 +191,7 @@ class SpectralMethods:
             spectral_result.append(result.coherence_and_transfer())
         self.spectral_results = spectral_result
 
-    def save(self, contrast) -> None:
+    def save(self, contrast: float | None = None) -> None:
         for result in self.spectral_results:
             result.save(self.config.savepath, contrast)
 

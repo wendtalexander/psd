@@ -9,18 +9,19 @@ from plotly.subplots import make_subplots
 
 def spectral(
     dataset: list[pathlib.Path],
-    contrast: float = 0.1,
+    contrast: float | None = None,
     negative_frequencies: bool = False,
 ):
     nix_file = nixio.File.open(str(dataset[0]), "r")
     block = nix_file.blocks[0]
     das = block.data_arrays
-    pxx = das[f"pxx_contrast_{contrast}"][:]
-    pyy = das[f"pyy_contrast_{contrast}"][:]
-    pxy = das[f"pxy_contrast_{contrast}"][:]
-    coherence = das[f"coherence_contrast_{contrast}"][:]
-    transfer = das[f"transfer_contrast_{contrast}"][:]
-    f = das[f"frequency_contrast_{contrast}"][:]
+    contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+    pxx = das[f"pxx{contrast_suffix}"][:]
+    pyy = das[f"pyy{contrast_suffix}"][:]
+    pxy = das[f"pxy{contrast_suffix}"][:]
+    coherence = das[f"coherence{contrast_suffix}"][:]
+    transfer = das[f"transfer{contrast_suffix}"][:]
+    f = das[f"frequency{contrast_suffix}"][:]
 
     fig = make_subplots(
         6,
@@ -33,7 +34,7 @@ def spectral(
             [{"rowspan": 2}, None],
             [None, None],
         ],
-        shared_xaxes="all",
+        shared_xaxes=True,
     )
     fig.add_trace(
         go.Scattergl(x=f, y=pyy, mode="markers+lines", name="pyy"), row=1, col=1
@@ -64,11 +65,24 @@ def spectral(
     return fig
 
 
-def jax_vs_numba(
+def rate(dataset: list[pathlib.Path], contrast: float | None = None):
+    nix_file = nixio.File.open(str(dataset[0]), "r")
+    block = nix_file.blocks[0]
+    das = block.data_arrays
+    contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+    time = das[f"time{contrast_suffix}"][:]
+    rate = das[f"mean_rate{contrast_suffix}"][:]
+    fig = go.Figure()
+    fig.add_trace(go.Scattergl(x=time, y=rate, mode="markers+lines", name="rate"))
+    return fig
+
+
+def comparision(
     dataset_methods_jax,
     dataset_methods_numba,
-    contrast: float = 0.1,
+    contrast: float | None = None,
     negative_frequencies: bool = False,
+    names: list[str] = ["jax", "numba"],
 ):
     fig = make_subplots(
         6,
@@ -83,19 +97,20 @@ def jax_vs_numba(
         ],
         shared_xaxes="all",
     )
-    names = ["jax", "numba"]
     color = ["blue", "magenta"]
     for i, dataset in enumerate([dataset_methods_jax, dataset_methods_numba]):
         print(dataset)
         nix_file = nixio.File.open(str(dataset[0]), "r")
         block = nix_file.blocks[0]
         das = block.data_arrays
-        pxx = das[f"pxx_contrast_{contrast}"][:]
-        pyy = das[f"pyy_contrast_{contrast}"][:]
-        pxy = das[f"pxy_contrast_{contrast}"][:]
-        coherence = das[f"coherence_contrast_{contrast}"][:]
-        transfer = das[f"transfer_contrast_{contrast}"][:]
-        f = das[f"frequency_contrast_{contrast}"][:]
+
+        contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+        pxx = das[f"pxx{contrast_suffix}"][:]
+        pyy = das[f"pyy{contrast_suffix}"][:]
+        pxy = das[f"pxy{contrast_suffix}"][:]
+        coherence = das[f"coherence{contrast_suffix}"][:]
+        transfer = das[f"transfer{contrast_suffix}"][:]
+        f = das[f"frequency{contrast_suffix}"][:]
 
         fig.add_trace(
             go.Scattergl(
@@ -166,7 +181,7 @@ if __name__ == "__main__":
 
     pio.renderers.default = "browser"
     method = "fft"
-    datafolder = pathlib.Path("psd/data/punit/jax/")
+    datafolder = pathlib.Path("psd/data/lif/")
     dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
     fig = spectral(dataset_methods, negative_frequencies=True)
     fig.show()

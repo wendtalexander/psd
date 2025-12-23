@@ -7,11 +7,7 @@ title: FFT
 
 import pathlib
 
-import nixio
-import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from plots import comparision, spectral
+from plots import  spectral
 
 method = "fft"
 datafolder = pathlib.Path("../psd/data/lif/")

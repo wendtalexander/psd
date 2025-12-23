@@ -69,7 +69,9 @@ def main() -> None:
         if nix_file.is_file():
             log.debug("Found nix File deleting it")
             nix_file.unlink()
-    config = Config(savepath=savepath, cell=None, eodf=None, nperseg=nperseg, fs=fs)
+    config = Config(
+        savepath=savepath, cell=None, eodf=None, nperseg=nperseg, fs=fs, batch_size=500
+    )
     simulation(config, model)
 
 

@@ -1,0 +1,70 @@
+---
+title: P-Unit membrane voltage
+---
+
+```{python}
+# | output: false
+
+import pathlib
+
+import nixio
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from plots import comparision, rate, spectral
+
+method = "fft"
+contrast = 0.1
+datafolder = pathlib.Path("../psd/data/punit/vmem/2010-11-08-al-invivo-1/")
+dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
+fig = spectral(dataset_methods, contrast=contrast, negative_frequencies=True)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+fig.update_layout(
+    height=600,
+    width=600,
+)
+fig.update_layout(template="plotly_white")
+display(fig)
+
+fig.update_layout(template="plotly_dark")
+display(fig)
+```
+
+
+## 2. Comparision to original
+
+
+```{python}
+# | output: false
+datafolder = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
+dataset_methods_org = sorted(datafolder.rglob(f"{method}*.nix"))
+fig = comparision(
+    dataset_methods,
+    dataset_methods_org,
+    contrast=contrast,
+    negative_frequencies=True,
+    names=["ref", "org"],
+)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+fig.update_layout(
+    height=600,
+    width=600,
+)
+fig.update_layout(template="plotly_white")
+display(fig)
+
+fig.update_layout(template="plotly_dark")
+display(fig)
+```
+
+```{python}
+# | output: false
+fig = rate(dataset_methods, contrast=contrast)
+```

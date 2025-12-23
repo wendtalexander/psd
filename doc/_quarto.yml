@@ -53,6 +53,7 @@ website:
           - "punit_vdent_fft.qmd"
           - "punit_wihtout_adaptation_fft.qmd"
           - "punit_wihtout_refperiod_fft.qmd"
+          - "punit_vmem.qmd"
 
       - section: "LIF"
         contents:

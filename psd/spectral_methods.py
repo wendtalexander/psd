@@ -12,7 +12,7 @@ class Config:
     savepath: pathlib.Path
     cell: str | None = None
     eodf: float | None = None
-    duration: float = 2
+    duration: int = 2
     trials: int = 10_000
     contrasts: list[float] = field(default_factory=lambda: [0.1])
     batch_size: int = 2000
@@ -139,6 +139,9 @@ class SpectralMethods:
         "rate_fft": MethodInfo("fft", True, True),
         "welch_segments": MethodInfo("welch_segments", False, False),
         "rate_welch_segments": MethodInfo("welch_segments", False, True),
+        "fft_without_mean_substraction": MethodInfo(
+            "fft_without_mean_substraction", True, False
+        ),
     }
 
     def __init__(self, config: Config, methods: list[str] | None = None) -> None:

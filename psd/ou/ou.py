@@ -57,25 +57,31 @@ def simulation(config: Config, params: ou.OUParams):
 
 
 def main() -> None:
-    savepath: Path = find_project_root() / "data" / "ou"
+    basepath: Path = find_project_root() / "data" / "ou"
+
     fss = [20_000, 40_000, 80_000, 160_000]
     npersegs = [2**14, 2**15, 2**16, 2**17]
     for fs, nperseg in zip(fss, npersegs, strict=True):
         model = ou.OUParams(fs=fs, gamma=1, noise_strength=0.1)
-        savepath = savepath / f"{fs}"
+        savepath = basepath / f"{fs}"
 
         if not savepath.exists():
             savepath.mkdir(parents=True, exist_ok=True)
 
-    nix_files = savepath.rglob("*.nix")
-    for nix_file in nix_files:
-        if nix_file.is_file():
-            log.debug("Found nix File deleting it")
-            nix_file.unlink()
-    config = Config(
-        savepath=savepath, cell=None, eodf=None, nperseg=nperseg, fs=fs, batch_size=500
-    )
-    simulation(config, model)
+        nix_files = savepath.rglob("*.nix")
+        for nix_file in nix_files:
+            if nix_file.is_file():
+                log.debug("Found nix File deleting it")
+                nix_file.unlink()
+        config = Config(
+            savepath=savepath,
+            cell=None,
+            eodf=None,
+            nperseg=nperseg,
+            fs=fs,
+            batch_size=500,
+        )
+        simulation(config, model)
 
 
 if __name__ == "__main__":

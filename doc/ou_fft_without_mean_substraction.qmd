@@ -1,5 +1,5 @@
 ---
-title: FFT
+title: FFT with out mean substraction
 ---
 
 
@@ -23,7 +23,7 @@ gamma = 1
 noise_strength=0.1
 theory_color = "magenta"
 
-method = "fft"
+method = "fft_without_mean_substraction"
 
 datafolder = pathlib.Path("../psd/data/ou/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
@@ -58,7 +58,7 @@ display(fig)
 
 ```{python}
 # | output: false
-def plot_spectra_folder(fig, datafolder,name):
+def plot_spectra_folder(fig, datafolder,name, method):
     dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
     nix_file= nixio.File.open(str(dataset_methods[0]), "r")
     block = nix_file.blocks[0]
@@ -73,10 +73,10 @@ datafolder8 = pathlib.Path("../psd/data/ou/80000/")
 datafolder16 = pathlib.Path("../psd/data/ou/160000/")
 
 fig = go.Figure()
-plot_spectra_folder(fig, datafolder2,"fft 20000 kHz")
-plot_spectra_folder(fig, datafolder4,"fft 40000 kHz")
-plot_spectra_folder(fig, datafolder8,"fft 80000 kHz")
-plot_spectra_folder(fig, datafolder16,"fft 160000 kHz")
+plot_spectra_folder(fig, datafolder2,"fft 20000 kHz",method)
+plot_spectra_folder(fig, datafolder4,"fft 40000 kHz",method)
+plot_spectra_folder(fig, datafolder8,"fft 80000 kHz", method)
+plot_spectra_folder(fig, datafolder16,"fft 160000 kHz", method)
 fig.add_scattergl(x=f, y=pxx_th, name="Theory", line_color=theory_color)
 fig.update_yaxes(type="log")
 fig.update_xaxes(range=[0, 15])

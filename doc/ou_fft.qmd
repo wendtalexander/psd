@@ -24,6 +24,7 @@ theory_color = "magenta"
 
 method = "fft"
 datafolder = pathlib.Path("../psd/data/ou/")
+
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
 nix_file= nixio.File.open(str(dataset_methods[0]), "r")
 block = nix_file.blocks[0]
@@ -33,8 +34,8 @@ f= da["frequency"][:]
 
 pxx_th = pxx_theory(f, gamma, noise_strength)
 fig = go.Figure()
-fig.add_scatter(x=f, y=pxx,mode="lines+markers", name="fft")
-fig.add_scatter(x=f, y=pxx_th, name="Theory", line_color=theory_color)
+fig.add_scattergl(x=f, y=pxx,mode="lines+markers", name="fft")
+fig.add_scattergl(x=f, y=pxx_th, name="Theory", line_color=theory_color)
 fig.update_yaxes(type="log")
 
 fig.update_xaxes(range=[0, 15])

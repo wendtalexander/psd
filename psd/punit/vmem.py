@@ -61,7 +61,7 @@ def simulation(config: Config, params: punit.PUnitParams):
 def main() -> None:
     models: list[punit.PUnitParams] = load.punit_params()
     for model in models:
-        savepath: Path = find_project_root() / "data" / "punit" / "jax" / model.cell
+        savepath: Path = find_project_root() / "data" / "punit" / "vmem" / model.cell
 
         if not savepath.exists():
             savepath.mkdir(parents=True, exist_ok=True)
@@ -74,6 +74,7 @@ def main() -> None:
         config = Config(savepath=savepath, cell=model.cell, eodf=model.EODf)
         model.deltat = 1 / config.fs
         simulation(config, model)
+        exit()
 
 
 if __name__ == "__main__":

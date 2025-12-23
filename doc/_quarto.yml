@@ -65,6 +65,7 @@ website:
         href: "ou.qmd"
         contents:
           - ou_fft.qmd
+          - ou_fft_without_mean_substraction.qmd
 
 execute:
   freeze: auto

@@ -60,7 +60,10 @@ website:
           - "lif_welch.qmd"
           - "lif_rate_fft.qmd"
           - "lif_rate_welch.qmd"
-
+      - section: "Ornstein-Uhlenbeck"
+        href: "ou.qmd"
+        contents:
+          - ou_fft.qmd
 
 execute:
   freeze: auto

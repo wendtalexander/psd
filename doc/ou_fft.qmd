@@ -1,0 +1,54 @@
+---
+title: FFT
+---
+
+
+## 1. Power spectrum
+
+```{python}
+# | output: false
+
+import jax
+import nixio
+import jax.numpy as jnp
+import jax.scipy as jsp
+import pathlib
+import plotly.graph_objects as go
+
+def pxx_theory(f, gamma, noise_strength):
+    return 2 * noise_strength / (gamma**2 + (2 * jnp.pi * f) ** 2)
+
+gamma = 1
+noise_strength=0.1
+theory_color = "magenta"
+
+method = "fft"
+datafolder = pathlib.Path("../psd/data/ou/")
+dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
+nix_file= nixio.File.open(str(dataset_methods[0]), "r")
+block = nix_file.blocks[0]
+da = block.data_arrays
+pxx = da["pxx"][:]
+f= da["frequency"][:]
+
+pxx_th = pxx_theory(f, gamma, noise_strength)
+fig = go.Figure()
+fig.add_scatter(x=f, y=pxx,mode="lines+markers", name="fft")
+fig.add_scatter(x=f, y=pxx_th, name="Theory", line_color=theory_color)
+fig.update_yaxes(type="log")
+
+fig.update_xaxes(range=[0, 15])
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+fig.update_layout(
+    height=600,
+    width=600,
+)
+fig.update_layout(template="plotly_white")
+display(fig)
+fig.update_layout(template="plotly_dark")
+display(fig)
+```

@@ -14,7 +14,7 @@ from plots import comparision, rate, spectral
 
 method = "fft"
 contrast = 0.1
-datafolder = pathlib.Path("../psd/data/punit/without_refperiod/2018-05-08-ai-invivo-1/")
+datafolder = pathlib.Path("../psd/data/punit/without_refperiod/2012-04-20-ak-invivo-1/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
 fig = spectral(dataset_methods, contrast=contrast, negative_frequencies=True)
 ```
@@ -58,7 +58,7 @@ display(fig)
 
 ```{python}
 # | output: false
-datafolder = pathlib.Path("../psd/data/punit/jax/2018-05-08-ai-invivo-1/")
+datafolder = pathlib.Path("../psd/data/punit/jax/2012-04-20-ak-invivo-1/")
 dataset_methods_org = sorted(datafolder.rglob(f"{method}*.nix"))
 fig = comparision(
     dataset_methods,

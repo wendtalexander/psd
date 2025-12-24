@@ -3,5 +3,31 @@ title: PSD numerical inspection of the power spectral density
 ---
 
 ## Motivation
-Here Im trying to implement different methods to calculate the power spectral density for leaky integrated and fire neurons, and differential equation like the ornstein-uhlenbeck process.
+Here I'm trying to implement different methods to calculate the power spectral
+density for leaky integrated and fire neurons, and differential equation like
+the ornstein-uhlenbeck process.
+
+## 1. Installation
+
+This is mainly a documentation on how to calculate the power spectral density and not a package to use for calculating it.
+I'm using [quarto](https://quarto.org) for the documentation, `quarto` needs to be installed system wide.
+
+Here is how to see the documentation:
+```bash
+git clone https://github.com/wendtalexander/psd.git
+cd psd
+quarto preview doc
+```
+## 2.Methods
+Current implemented methods are:
+
+#### 2.1 Signal is divided in segments, with no overlap, or smoothing
+- [jax.numpy.fft.fft](https://docs.jax.dev/en/latest/_autosummary/jax.numpy.fft.fft.html) for convolved firing rates and binary spike trains
+    - with mean subtraction for spiking data
+    - without mean subtraction for spiking data
+- [jax.scipy.signal.welch](https://docs.jax.dev/en/latest/_autosummary/jax.scipy.signal.welch.html#jax.scipy.signal.welch) for convolved firing rates and binary spike trains
+    - with detrend set to False and manual subtraction of the mean 
+
+#### 2.2 Signal is not divided in segments, with overlap and smoothing
+- [ ] Needs to be done for both methods!
 

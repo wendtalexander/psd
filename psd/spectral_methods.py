@@ -4,6 +4,7 @@ from dataclasses import dataclass, field, fields, replace
 import jax.numpy as jnp
 import jax.scipy as jsp
 import nixio
+from IPython.terminal.embed import embed
 from nixio.exceptions import DuplicateName
 
 
@@ -63,6 +64,7 @@ class SpectralResults:
     ):
         if negative_frequencies:
             f = jnp.fft.fftfreq(nperseg, d=1 / fs)  # fft
+            f = jnp.fft.fftshift(f)
         else:
             f = jnp.fft.rfftfreq(nperseg, d=1 / fs)  # rfft
         n_freqs = f.shape[0]
@@ -142,6 +144,8 @@ class SpectralMethods:
         "fft_without_mean_substraction": MethodInfo(
             "fft_without_mean_substraction", True, False
         ),
+        "welch": MethodInfo("welch", False, False),
+        "fft_segments": MethodInfo("fft_segments", True, False),
     }
 
     def __init__(self, config: Config, methods: list[str] | None = None) -> None:
@@ -198,9 +202,22 @@ class SpectralMethods:
         for result in self.spectral_results:
             result.save(self.config.savepath, contrast)
 
-    def welch_segments(self, spikes: jnp.ndarray, stimulus):
+    def _segment_signal(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):
         spikes = spikes[:, -self.config.nperseg :]
         stimulus = stimulus[:, -self.config.nperseg :]
+        return spikes, stimulus
+
+    def _segment_signal_trials(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):
+        segments = jnp.floor(stimulus.shape[1] / self.config.nperseg).astype(int)
+        segments_index = int(segments * self.config.nperseg)
+        stimulus = stimulus[:, :segments_index].reshape(
+            -1, segments, self.config.nperseg
+        )
+        spikes = spikes[:, :segments_index].reshape(-1, segments, self.config.nperseg)
+        return spikes, stimulus
+
+    def welch_segments(self, spikes: jnp.ndarray, stimulus):
+        spikes, stimulus = self._segment_signal(spikes, stimulus)
         f, pyy = jsp.signal.welch(
             stimulus,
             fs=self.config.fs,
@@ -229,28 +246,31 @@ class SpectralMethods:
         return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
 
     def fft(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):
-        spikes = spikes[:, -self.config.nperseg :]
-        stimulus = stimulus[:, -self.config.nperseg :]
+        spikes, stimulus = self._segment_signal(spikes, stimulus)
 
         dt = 1 / self.config.fs
         fft_pxx = jnp.fft.fft(spikes - jnp.mean(spikes, axis=1, keepdims=True)) * dt
+        fft_pxx = jnp.fft.fftshift(fft_pxx)
+
         pxx = jnp.abs(fft_pxx) ** 2
 
         fft_pyy = jnp.fft.fft(stimulus) * dt
+        fft_pyy = jnp.fft.fftshift(fft_pyy)
         pyy = jnp.abs(fft_pyy) ** 2
 
         pxy = fft_pxx * jnp.conj(fft_pyy)
         return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
 
     def fft_without_mean_substraction(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):
-        spikes = spikes[:, -self.config.nperseg :]
-        stimulus = stimulus[:, -self.config.nperseg :]
+        spikes, stimulus = self._segment_signal(spikes, stimulus)
 
         dt = 1 / self.config.fs
         fft_pxx = jnp.fft.fft(spikes) * dt
+        fft_pxx = jnp.fft.fftshift(fft_pxx)
         pxx = jnp.abs(fft_pxx) ** 2
 
         fft_pyy = jnp.fft.fft(stimulus) * dt
+        fft_pyy = jnp.fft.fftshift(fft_pyy)
         pyy = jnp.abs(fft_pyy) ** 2
 
         fft_pxy = fft_pxx * jnp.conj(fft_pyy)
@@ -258,8 +278,6 @@ class SpectralMethods:
         return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
 
     def welch(self, spikes: jnp.ndarray, stimulus):
-        spikes = spikes[:, -self.config.nperseg :]
-        stimulus = stimulus[:, -self.config.nperseg :]
         _, pyy = jsp.signal.welch(
             stimulus,
             fs=self.config.fs,
@@ -267,13 +285,14 @@ class SpectralMethods:
             noverlap=self.config.nperseg // 2,
         )
         _, pxx = jsp.signal.welch(
-            spikes - jnp.mean(spikes, axis=1, keepdims=True),
+            spikes,  # - jnp.mean(spikes, axis=1, keepdims=True),
             fs=self.config.fs,
             nperseg=self.config.nperseg,
             noverlap=self.config.nperseg // 2,
+            # detrend="constant",
         )
         _, pxy = jsp.signal.csd(
-            spikes - jnp.mean(spikes, axis=1, keepdims=True),
+            spikes,  # - jnp.mean(spikes, axis=1, keepdims=True),
             stimulus,
             fs=self.config.fs,
             nperseg=self.config.nperseg,
@@ -281,3 +300,18 @@ class SpectralMethods:
         )
 
         return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
+
+    def fft_segments(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):
+        spikes, stimulus = self._segment_signal_trials(spikes, stimulus)
+        dt = 1 / self.config.fs
+
+        fft_pxx = jnp.fft.fft(spikes - jnp.mean(spikes, axis=-1, keepdims=True)) * dt
+        fft_pxx = jnp.fft.fftshift(fft_pxx)
+        pxx = jnp.abs(fft_pxx) ** 2
+
+        fft_pyy = jnp.fft.fft(stimulus) * dt
+        fft_pyy = jnp.fft.fftshift(fft_pyy)
+        pyy = jnp.abs(fft_pyy) ** 2
+
+        pxy = fft_pxx * jnp.conj(fft_pyy)
+        return pyy.sum(axis=(0, 1)), pxx.sum(axis=(0, 1)), pxy.sum(axis=(0, 1))

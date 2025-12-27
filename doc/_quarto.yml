@@ -42,11 +42,14 @@ website:
     contents:
       - text: "Introduction"
         href: "index.qmd"
+      - text: "Methods"
+        href: "methods.qmd"
       - section: "P-Unit"
         contents:
           - section: "Different Methods"
             contents:
             - "punit_fft.qmd"
+            - "punit_welch_segments.qmd"
             - "punit_welch.qmd"
             - "punit_rate_fft.qmd"
             - "punit_rate_welch.qmd"
@@ -54,6 +57,7 @@ website:
           - "punit_wihtout_adaptation_fft.qmd"
           - "punit_wihtout_refperiod_fft.qmd"
           - "punit_vmem.qmd"
+          - "punit_nperseg.qmd"
 
       - section: "LIF"
         contents:

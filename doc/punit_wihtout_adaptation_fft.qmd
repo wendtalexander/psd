@@ -10,14 +10,16 @@ import pathlib
 import nixio
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from plots import comparision, rate, spectral
-
+from plots import comparision, rate, rate_comparision, spectral
 
 method = "fft"
 contrast = 0.1
 cell_id = 0
 datafolder = pathlib.Path("../psd/data/punit/without_adaptation/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
+
+datafolder = pathlib.Path("../psd/data/punit/jax/")
+dataset_methods_org = sorted(datafolder.rglob(f"{method}*.nix"))
 
 fig = spectral(dataset_methods, contrast=contrast, negative_frequencies=True)
 ```
@@ -37,9 +39,14 @@ display(fig)
 ```
 
 ## 1.Rate
+
 ```{python}
 # | output: false
-fig = rate(dataset_methods, contrast=contrast)
+fig = rate_comparision(
+    [dataset_methods[0], dataset_methods_org[0]],
+    names=["adap", "org"],
+    contrast=contrast,
+)
 ```
 
 
@@ -61,8 +68,6 @@ display(fig)
 
 ```{python}
 # | output: false
-datafolder = pathlib.Path("../psd/data/punit/jax/")
-dataset_methods_org = sorted(datafolder.rglob(f"{method}*.nix"))
 fig = comparision(
     dataset_methods,
     dataset_methods_org,

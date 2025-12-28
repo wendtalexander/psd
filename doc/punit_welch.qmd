@@ -1,10 +1,10 @@
 ---
-title: Welch Segments
+title: Welch
 ---
 
 
 ```{python}
-
+# | output : false
 import pathlib
 
 import nixio
@@ -13,11 +13,26 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from plots import comparision, spectral
 
-method = "welch_segments"
+method = "fft"
 contrast = 0.1
-datafolder = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
+datafolder = pathlib.Path("../psd/data/punit/duration/2010-11-08-al-invivo-1/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
-fig = spectral(dataset_methods, contrast=contrast)
+print(dataset_methods[0])
+# fig = spectral(dataset_methods, contrast=contrast)
+
+nix_file = nixio.File.open(str(dataset_methods[0]), "r")
+block = nix_file.blocks[0]
+das = block.data_arrays
+contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+coherence = das[f"coherence{contrast_suffix}"][:]
+transfer = das[f"transfer{contrast_suffix}"][:]
+f = das[f"frequency{contrast_suffix}"][:]
+fig = go.Figure()
+# fig.add_scattergl(x=f, y=coherence)
+#
+# x_range = [-350, 350]
+#
+# fig.update_xaxes(range=x_range)
 ```
 
 ```{python}
@@ -36,25 +51,27 @@ display(fig)
 ## JAX vs numba
 
 ```{python}
-# | echo: false
-# | output : false
-
-datafolder_jax = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
-datafolder_numba = pathlib.Path("../psd/data/punit/numba/2010-11-08-al-invivo-1/")
-dataset_methods_jax = sorted(datafolder_jax.rglob(f"{method}*.nix"))
-dataset_methods_numba = sorted(datafolder_numba.rglob(f"{method}*.nix"))
-fig = comparision(dataset_methods_jax, dataset_methods_numba, contrast=contrast)
+# # | echo: false
+# # | output : false
+#
+# datafolder_jax = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
+# datafolder_numba = pathlib.Path("../psd/data/punit/duration/2010-11-08-al-invivo-1/")
+# dataset_methods_jax = sorted(datafolder_jax.rglob(f"fft*.nix"))
+# dataset_methods_numba = sorted(datafolder_numba.rglob(f"fft*.nix"))
+#
+#
+# fig = comparision(dataset_methods_jax, dataset_methods_numba, contrast=contrast)
 ```
 
 ```{python}
 # | echo: false
 # | renderings: [light, dark]
-fig.update_layout(
-    height=600,
-    width=600,
-)
-fig.update_layout(template="plotly_white")
-display(fig)
-fig.update_layout(template="plotly_dark")
-display(fig)
+# fig.update_layout(
+#     height=600,
+#     width=600,
+# )
+# fig.update_layout(template="plotly_white")
+# display(fig)
+# fig.update_layout(template="plotly_dark")
+# display(fig)
 ```

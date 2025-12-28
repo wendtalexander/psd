@@ -11,7 +11,7 @@ from jaxon.params import load
 from jaxon.stimuli.noise import whitenoise
 from rich.progress import track
 
-from psd.punit.punit_model_jax import simulate_vdend
+from psd.punit.model_jax import simulate_vdend
 from psd.spectral_methods import Config, SpectralMethods
 from psd.utils import setup_rich
 from psd.utils.general import find_project_root
@@ -36,7 +36,10 @@ def simulation(config: Config, params: punit.PUnitParams):
     kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
 
     for con, contrast in enumerate(config.contrasts):
-        sm = SpectralMethods(methods=["fft", "welch_segments"], config=config)
+        sm = SpectralMethods(
+            methods=["fft", "welch_segments", "fft_without_mean_substraction"],
+            config=config,
+        )
         for batch in jnp.arange(0, config.trials, config.batch_size):
             # for batch in track(
             #     jnp.arange(0, config.trials, config.batch_size), description="Batches"
@@ -75,7 +78,6 @@ def main() -> None:
         config = Config(savepath=savepath, cell=model.cell, eodf=model.EODf)
         model.deltat = 1 / config.fs
         simulation(config, model)
-        sys.exit()
 
 
 if __name__ == "__main__":

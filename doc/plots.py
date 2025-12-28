@@ -1,5 +1,6 @@
 import pathlib
 
+import matplotlib.pyplot as plt
 import nixio
 import numpy as np
 import plotly.graph_objects as go
@@ -61,6 +62,7 @@ def spectral(
     fig.update_yaxes(type="log", row=3, col=1)
     fig.update_yaxes(type="log", row=5, col=1)
     fig.update_yaxes(range=[0.0, 0.02], row=4, col=2)
+    nix_file.close()
 
     return fig
 
@@ -74,6 +76,23 @@ def rate(dataset: list[pathlib.Path], contrast: float | None = None):
     rate = das[f"mean_rate{contrast_suffix}"][:]
     fig = go.Figure()
     fig.add_trace(go.Scattergl(x=time, y=rate, mode="markers+lines", name="rate"))
+    nix_file.close()
+    return fig
+
+
+def rate_comparision(
+    datasets: list[pathlib.Path], names=list[str], contrast: float | None = None
+):
+    fig = go.Figure()
+    for i, dataset in enumerate(datasets):
+        nix_file = nixio.File.open(str(dataset), "r")
+        block = nix_file.blocks[0]
+        das = block.data_arrays
+        contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+        time = das[f"time{contrast_suffix}"][:]
+        rate = das[f"mean_rate{contrast_suffix}"][:]
+        fig.add_trace(go.Scattergl(x=time, y=rate, mode="markers+lines", name=names[i]))
+    nix_file.close()
     return fig
 
 
@@ -173,6 +192,7 @@ def comparision(
     fig.update_yaxes(type="log", row=3, col=1)
     fig.update_yaxes(type="log", row=5, col=1)
     fig.update_yaxes(range=[0.0, 0.02], row=4, col=2)
+    nix_file.close()
     return fig
 
 
@@ -180,8 +200,8 @@ if __name__ == "__main__":
     import plotly.io as pio
 
     pio.renderers.default = "browser"
-    method = "fft"
-    datafolder = pathlib.Path("psd/data/lif/")
+    method = "fft_without"
+    datafolder = pathlib.Path("psd/data/punit/duration/")
     dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
-    fig = spectral(dataset_methods, negative_frequencies=True)
+    fig = spectral(dataset_methods, contrast=0.1, negative_frequencies=True)
     fig.show()

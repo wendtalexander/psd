@@ -31,7 +31,6 @@ $$ S(f) = \frac{2D}{\gamma^2 + (2 \pi f)^2} $$ {#eq-power}
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
-
 import jaxon.models.ou as ou
 
 key = jax.random.PRNGKey(42)
@@ -70,7 +69,9 @@ display(fig)
 def psd_oe(time, V, gamma, noise_strength):
     delta_vt = (noise_strength / gamma) * (1 - jnp.exp(-2 * gamma * time))
     vt = jnp.exp(-gamma * time)
-    theory = (1 / jnp.sqrt(2 * jnp.pi * delta_vt)) * jnp.exp(-((V - vt) ** 2) / (2 * delta_vt))
+    theory = (1 / jnp.sqrt(2 * jnp.pi * delta_vt)) * jnp.exp(
+        -((V - vt) ** 2) / (2 * delta_vt)
+    )
     return theory
 
 
@@ -79,7 +80,9 @@ theory = psd_oe(time, voltages, gamma, noise_strength)
 
 fig = go.Figure()
 fig.add_histogram(x=v, name="V", histnorm="probability density", nbinsx=50)
-fig.add_scatter(x=voltages, y=theory, mode="lines", line_color=theory_color, name="Theory")
+fig.add_scatter(
+    x=voltages, y=theory, mode="lines", line_color=theory_color, name="Theory"
+)
 fig.update_layout(xaxis_title="Voltage", yaxis_title="Probabilty density")
 ```
 ```{python}

@@ -1,0 +1,12 @@
+---
+title: Mehtods for the psd
+---
+Here I want to give a brief overview over the different methods one can use to calculate the power spectral density of a signal.
+
+
+## 1. With FFT
+
+## 2. With welch method
+
+## 3. With firing rate
+

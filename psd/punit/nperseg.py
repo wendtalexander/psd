@@ -64,6 +64,7 @@ def main() -> None:
     for model in models:
         basepath: Path = find_project_root() / "data" / "punit" / "nperseg" / model.cell
         npersegs = [2**15, 2**16, 2**17, 2**18, 2**19, 2**20, 2**21]
+        
         for nperseg in npersegs:
             savepath = basepath / f"{nperseg}"
             if not savepath.exists():

@@ -5,8 +5,14 @@ Here I want to give a brief overview over the different methods one can use to c
 
 
 ## 1. With FFT
+The normal FFT method uses the `jax.numpy.fft.fft` method, where the singnal is
+divided into segments, or the model is already simulated in a short segments.
+From each of these segments the Fast Fouier Transformation is calculated.
+Where the power spectral desity is caclulated with from the function $f(t)$
+
+$$ P_{xx} = \lvert F(\omega)\rvert^2  dt $$
+for each segment and summed over the different trials of the simulation.
 
 ## 2. With welch method
-
-## 3. With firing rate
+The welch method is based on the `jax.scipy.singal.welch` method, where multiple segments mulitplied with a window (hanning window) for less spectral leakage in high frequencies.
 

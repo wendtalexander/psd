@@ -11,7 +11,7 @@ import nixio
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from plots import comparision, spectral
+from plots import comparision, get_coherence, spectral
 
 method = "fft"
 contrast = 0.1
@@ -19,20 +19,17 @@ datafolder = pathlib.Path("../psd/data/punit/duration/2010-11-08-al-invivo-1/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
 print(dataset_methods[0])
 # fig = spectral(dataset_methods, contrast=contrast)
+lower = -50
+upper = 350
 
-nix_file = nixio.File.open(str(dataset_methods[0]), "r")
-block = nix_file.blocks[0]
-das = block.data_arrays
-contrast_suffix = f"_contrast_{contrast}" if contrast else ""
-coherence = das[f"coherence{contrast_suffix}"][:]
-transfer = das[f"transfer{contrast_suffix}"][:]
-f = das[f"frequency{contrast_suffix}"][:]
+f, coherence = get_coherence(
+    dataset_methods, contrast=contrast, lower=lower, upper=upper
+)
+
 fig = go.Figure()
-# fig.add_scattergl(x=f, y=coherence)
-#
-# x_range = [-350, 350]
-#
-# fig.update_xaxes(range=x_range)
+fig.add_scattergl(x=f, y=coherence)
+x_range = [-350, 350]
+fig.update_xaxes(range=x_range)
 ```
 
 ```{python}
@@ -48,30 +45,40 @@ fig.update_layout(template="plotly_dark")
 display(fig)
 ```
 
-## JAX vs numba
+## Welch wino
 
 ```{python}
-# # | echo: false
-# # | output : false
-#
-# datafolder_jax = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
-# datafolder_numba = pathlib.Path("../psd/data/punit/duration/2010-11-08-al-invivo-1/")
-# dataset_methods_jax = sorted(datafolder_jax.rglob(f"fft*.nix"))
-# dataset_methods_numba = sorted(datafolder_numba.rglob(f"fft*.nix"))
-#
-#
-# fig = comparision(dataset_methods_jax, dataset_methods_numba, contrast=contrast)
+# | echo: false
+# | output : false
+datafolder_normal = pathlib.Path(
+    "../psd/data/punit/jax/2010-11-08-al-invivo-1/fft_2010-11-08-al-invivo-1.nix"
+)
+datafolder_welch = pathlib.Path(
+    "../psd/data/punit/duration/2010-11-08-al-invivo-1/welch_2010-11-08-al-invivo-1.nix"
+)
+f, coherence = get_coherence(
+    [datafolder_normal], contrast=contrast, lower=lower, upper=upper
+)
+
+f_w, coherence_w = get_coherence(
+    [datafolder_welch], contrast=contrast, lower=lower, upper=upper
+)
+fig = go.Figure()
+fig.add_scattergl(x=f, y=coherence, name="without winodow")
+fig.add_scattergl(x=f_w, y=coherence_w, name="welch")
+x_range = [-350, 350]
+fig.update_xaxes(range=x_range)
 ```
 
 ```{python}
 # | echo: false
 # | renderings: [light, dark]
-# fig.update_layout(
-#     height=600,
-#     width=600,
-# )
-# fig.update_layout(template="plotly_white")
-# display(fig)
-# fig.update_layout(template="plotly_dark")
-# display(fig)
+fig.update_layout(
+    height=600,
+    width=600,
+)
+fig.update_layout(template="plotly_white")
+display(fig)
+fig.update_layout(template="plotly_dark")
+display(fig)
 ```

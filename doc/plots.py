@@ -196,6 +196,19 @@ def comparision(
     return fig
 
 
+def get_coherence(
+    dataset, contrast: float | None = None, lower: float = -50, upper: float = 350
+):
+    nix_file = nixio.File.open(str(dataset[0]), "r")
+    block = nix_file.blocks[0]
+    das = block.data_arrays
+    contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+    coherence = das[f"coherence{contrast_suffix}"][:]
+    f = das[f"frequency{contrast_suffix}"][:]
+    mask = (f >= lower) & (f <= upper)
+    return f[mask], coherence[mask]
+
+
 if __name__ == "__main__":
     import plotly.io as pio
 

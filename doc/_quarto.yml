@@ -58,6 +58,7 @@ website:
           - "punit_wihtout_refperiod_fft.qmd"
           - "punit_vmem.qmd"
           - "punit_nperseg.qmd"
+          - "punit_nperseg_fs.qmd"
 
       - section: "LIF"
         contents:

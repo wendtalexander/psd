@@ -1,0 +1,86 @@
+---
+title: Influence of nperseg and fs
+---
+
+```{python}
+# | output : false
+import pathlib
+
+import nixio
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from plots import comparision, spectral
+
+method = "fft"
+contrast = 0.1
+npersegs = [2**15, 2**16, 2**17, 2**18, 2**19, 2**20, 2**21]
+fs = 80_000
+fs2 = 160_000
+fig = go.Figure()
+lower = -50
+upper = 350
+for nperseg in npersegs:
+    datafolder = pathlib.Path(
+        f"../psd/data/punit/nperseg_fs/2010-11-08-al-invivo-1/nperseg-{nperseg}_fs-{fs}/"
+    )
+    datafolder2 = pathlib.Path(
+        f"../psd/data/punit/nperseg_fs/2010-11-08-al-invivo-1/nperseg-{nperseg}_fs-{fs2}/"
+    )
+
+    dataset_methods = sorted(
+        datafolder.rglob(f"{method}_nperseg-{nperseg}_fs-{fs}*.nix")
+    )
+    dataset_methods_2 = sorted(
+        datafolder2.rglob(f"{method}_nperseg-{nperseg}_fs-{fs2}*.nix")
+    )
+    print(dataset_methods)
+    print(dataset_methods_2)
+
+    nix_file = nixio.File.open(str(dataset_methods[0]), "r")
+    block = nix_file.blocks[0]
+    das = block.data_arrays
+    contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+    coherence = das[f"coherence{contrast_suffix}"][:]
+    f = das[f"frequency{contrast_suffix}"][:]
+    mask = (f >= lower) & (f <= upper)
+    fig.add_scattergl(
+        x=f[mask],
+        y=coherence[mask],
+        name=f"nperseg: {nperseg} fs:{fs / 1000} res: {fs / nperseg:.4f}",
+        line_color="black",
+    )
+
+    nix_file2 = nixio.File.open(str(dataset_methods_2[0]), "r")
+    block2 = nix_file2.blocks[0]
+    das2 = block2.data_arrays
+    contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+    coherence = das2[f"coherence{contrast_suffix}"][:]
+    f = das2[f"frequency{contrast_suffix}"][:]
+    mask = (f >= lower) & (f <= upper)
+    fig.add_scattergl(
+        x=f[mask],
+        y=coherence[mask],
+        line_color="red",
+        name=f"nperseg: {nperseg} fs:{fs2 / 1000} kHz, res: {fs2 / nperseg:.4f}",
+    )
+
+    # fig = spectral(dataset_methods, contrast=contrast, negative_frequencies=True)
+
+x_range = [lower, upper]
+fig.update_xaxes(range=x_range)
+fig.update_yaxes(range=[0, 1])
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+fig.update_layout(
+    height=600,
+    width=600,
+)
+fig.update_layout(template="plotly_white")
+display(fig)
+fig.update_layout(template="plotly_dark")
+display(fig)
+```

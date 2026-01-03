@@ -285,11 +285,11 @@ class SpectralMethods:
             noverlap=self.config.nperseg // 2,
         )
         _, pxx = jsp.signal.welch(
-            spikes,  # - jnp.mean(spikes, axis=1, keepdims=True),
+            spikes - jnp.mean(spikes, axis=1, keepdims=True),
             fs=self.config.fs,
             nperseg=self.config.nperseg,
             noverlap=self.config.nperseg // 2,
-            # detrend="constant",
+            detrend=False,
         )
         _, pxy = jsp.signal.csd(
             spikes,  # - jnp.mean(spikes, axis=1, keepdims=True),

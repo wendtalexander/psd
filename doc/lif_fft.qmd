@@ -7,7 +7,8 @@ title: FFT
 
 import pathlib
 
-from plots import  spectral
+import nixio
+from plots import spectral
 
 method = "fft"
 datafolder = pathlib.Path("../psd/data/lif/")
@@ -26,4 +27,18 @@ fig.update_layout(template="plotly_white")
 display(fig)
 fig.update_layout(template="plotly_dark")
 display(fig)
+```
+```{python}
+nix_file = nixio.File.open(str(dataset_methods[0]), "r")
+block = nix_file.blocks[0]
+das = block.data_arrays
+contrast = None
+contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+pxx = das[f"pxx{contrast_suffix}"][:]
+pyy = das[f"pyy{contrast_suffix}"][:]
+pxy = das[f"pxy{contrast_suffix}"][:]
+coherence = das[f"coherence{contrast_suffix}"][:]
+transfer = das[f"transfer{contrast_suffix}"][:]
+f = das[f"frequency{contrast_suffix}"][:]
+print(coherence)
 ```

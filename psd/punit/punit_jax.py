@@ -31,7 +31,6 @@ def simulation(config: Config, params: punit.PUnitParams):
     spike_rate = jax.vmap(jax.jit(dsp.rate.spike_rate), in_axes=[0, None])
     time = jnp.arange(0, config.duration, 1 / config.fs)
     baseline = jnp.sin(2 * jnp.pi * config.eodf * time)[jnp.newaxis, :]
-    baseline = jnp.repeat(baseline, config.batch_size, axis=0)
     kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
     for con, contrast in enumerate(config.contrasts):
         sm = SpectralMethods(config)
@@ -76,6 +75,8 @@ def main() -> None:
             savepath=savepath,
             cell=model.cell,
             eodf=model.EODf,
+            duration=100,
+            trials=100,
         )
         model.deltat = 1 / config.fs
         simulation(config, model)

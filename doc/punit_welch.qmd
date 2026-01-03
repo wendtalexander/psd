@@ -13,11 +13,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from plots import comparision, get_coherence, spectral
 
-method = "fft"
+method = "welch"
 contrast = 0.1
 datafolder = pathlib.Path("../psd/data/punit/duration/2010-11-08-al-invivo-1/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
-print(dataset_methods[0])
 # fig = spectral(dataset_methods, contrast=contrast)
 lower = -50
 upper = 350
@@ -25,7 +24,6 @@ upper = 350
 f, coherence = get_coherence(
     dataset_methods, contrast=contrast, lower=lower, upper=upper
 )
-
 fig = go.Figure()
 fig.add_scattergl(x=f, y=coherence)
 x_range = [-350, 350]

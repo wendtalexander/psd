@@ -13,18 +13,19 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from plots import comparision, spectral
 
-method = "fft"
+method = "welch"
 contrast = 0.1
-npersegs = [2**15, 2**16, 2**17, 2**18, 2**19, 2**20, 2**21]
+npersegs = [2**16, 2**17, 2**18, 2**19, 2**20, 2**21]
 fig = go.Figure()
 lower = -50
 upper = 300
 for nperseg in npersegs:
     datafolder = pathlib.Path(
-        f"../psd/data/punit/nperseg/2010-11-08-al-invivo-1/{nperseg}"
+        f"../psd/data/punit/nperseg/2010-11-08-al-invivo-1/{nperseg}/"
     )
-
     dataset_methods = sorted(datafolder.rglob(f"{method}_{nperseg}*.nix"))
+    print(dataset_methods)
+    print(nperseg)
     nix_file = nixio.File.open(str(dataset_methods[0]), "r")
     block = nix_file.blocks[0]
     das = block.data_arrays
@@ -42,8 +43,50 @@ fig.update_yaxes(range=[0, 1])
 ```
 ```{python}
 # | echo: false
-print(dataset_methods)
+# | renderings: [light, dark]
+fig.update_layout(
+    height=600,
+    width=600,
+)
+fig.update_layout(template="plotly_white")
+display(fig)
+fig.update_layout(template="plotly_dark")
+display(fig)
 ```
+
+```{python}
+# | output: false
+method = "welch_segments"
+contrast = 0.1
+fig = go.Figure()
+lower = -50
+upper = 300
+for nperseg in npersegs:
+    datafolder = pathlib.Path(
+        f"../psd/data/punit/nperseg/2010-11-08-al-invivo-1/{nperseg}"
+    )
+
+    dataset_methods = sorted(datafolder.rglob(f"{method}_{nperseg}*.nix"))
+    nix_file = nixio.File.open(str(dataset_methods[0]), "r")
+    block = nix_file.blocks[0]
+
+    das = block.data_arrays
+    contrast_suffix = f"_contrast_{contrast}" if contrast else ""
+    coherence = das[f"coherence{contrast_suffix}"][:]
+    pxx = das[f"pxx{contrast_suffix}"][:]
+    pyy = das[f"pyy{contrast_suffix}"][:]
+    f = das[f"frequency{contrast_suffix}"][:]
+    mask = (f >= lower) & (f <= upper)
+
+    fig.add_scattergl(x=f[mask], y=pxx[mask], name=nperseg)
+
+    # fig = spectral(dataset_methods, contrast=contrast, negative_frequencies=True)
+
+x_range = [lower, upper]
+fig.update_xaxes(range=x_range)
+fig.update_yaxes(type="log")
+```
+
 ```{python}
 # | echo: false
 # | renderings: [light, dark]
@@ -56,4 +99,3 @@ display(fig)
 fig.update_layout(template="plotly_dark")
 display(fig)
 ```
-

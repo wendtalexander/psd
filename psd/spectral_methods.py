@@ -249,10 +249,11 @@ class SpectralMethods:
         spikes, stimulus = self._segment_signal(spikes, stimulus)
 
         dt = 1 / self.config.fs
+        T = spikes.shape[0] * dt
         fft_pxx = jnp.fft.fft(spikes - jnp.mean(spikes, axis=1, keepdims=True)) * dt
         fft_pxx = jnp.fft.fftshift(fft_pxx)
 
-        pxx = jnp.abs(fft_pxx) ** 2
+        pxx = (jnp.abs(fft_pxx) ** 2) / T
 
         fft_pyy = jnp.fft.fft(stimulus) * dt
         fft_pyy = jnp.fft.fftshift(fft_pyy)

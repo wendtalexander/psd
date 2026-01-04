@@ -77,6 +77,7 @@ def main() -> None:
             eodf=model.EODf,
             duration=100,
             trials=100,
+            batch_size=10,
         )
         model.deltat = 1 / config.fs
         simulation(config, model)

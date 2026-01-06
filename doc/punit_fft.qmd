@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from plots import comparision, spectral
 
-method = "fft"
+method = "fft_hanning"
 contrast = 0.1
 datafolder = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
@@ -46,6 +46,7 @@ f = das[f"frequency{contrast_suffix}"][:]
 print(coherence)
 print(pxx[0])
 ```
+
 ## JAX vs numba
 
 ```{python}

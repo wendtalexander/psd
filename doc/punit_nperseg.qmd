@@ -56,7 +56,6 @@ display(fig)
 
 ```{python}
 # | output: false
-method = "welch_segments"
 contrast = 0.1
 fig = go.Figure()
 lower = -50
@@ -77,7 +76,6 @@ for nperseg in npersegs:
     pyy = das[f"pyy{contrast_suffix}"][:]
     f = das[f"frequency{contrast_suffix}"][:]
     mask = (f >= lower) & (f <= upper)
-
     fig.add_scattergl(x=f[mask], y=pxx[mask], name=nperseg)
 
     # fig = spectral(dataset_methods, contrast=contrast, negative_frequencies=True)

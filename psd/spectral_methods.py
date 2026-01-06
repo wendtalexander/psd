@@ -218,15 +218,46 @@ class SpectralMethods:
         return spikes, stimulus
 
     def _calc_fft(self, spikes, stimulus):
-        scale = 1.0 / (self.config.fs * spikes.shape[0])
+        scale = 1.0 / (self.config.fs * spikes.shape[-1])
         fft_pxx = jnp.fft.fftshift(jnp.fft.fft(spikes))
-        pxx = scale * jnp.abs(fft_pxx) ** 2
-
+        pxx = scale * (jnp.abs(fft_pxx) ** 2)
         fft_pyy = jnp.fft.fftshift(jnp.fft.fft(stimulus))
-        pyy = scale * jnp.abs(fft_pyy) ** 2
-        pxy = scale * fft_pxx * jnp.conj(fft_pyy)
-
+        pyy = scale * (jnp.abs(fft_pyy) ** 2)
+        pxy = scale * (fft_pxx * jnp.conj(fft_pyy))
         return pyy, pxx, pxy
+
+    # def _calc_fft_numerical_recipies(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):
+    #     """Calculates the psd as in the numerical recipies.
+    #     Parameters
+    #     ----------
+    #     spikes : jnp.ndarray
+    #         spikes with shape[trials, nperseg]
+    #
+    #     stimulus : jnp.ndarray
+    #         stimulus with shape[trials, nperseg]
+    #
+    #     Returns
+    #     -------
+    #     pyy, pxx, pxy: jnp.ndarray
+    #         sum of the powerspectra
+    #     """
+    #     scale = 1 / (spikes.shape[1]) ** 2
+    #     fft_pxx = jnp.fft.fftshift(jnp.fft.fft(spikes))
+    #     pxx = jnp.zeros_like(fft_pxx, dtype=float)
+    #
+    #     # pxx = pxx.at[:, 0].set(scale * (jnp.abs(fft_pxx[:, 0]) ** 2))
+    #     # for i in range(1, spikes.shape[1]):
+    #     #     pxx = pxx.at[:, i].set(
+    #     #         scale * (jnp.abs(fft_pxx[:, i]) ** 2 + jnp.abs(fft_pxx[:, i + 1]) ** 2)
+    #     #     )
+    #     # pxx = pxx.at[:, -1].set(scale * (jnp.abs(fft_pxx[:, -1]) ** 2))
+    #     pxx = scale * (jnp.abs(fft_pxx) ** 2)
+    #
+    #     fft_pyy = jnp.fft.fftshift(jnp.fft.fft(stimulus))
+    #     pyy = scale * (jnp.abs(fft_pyy) ** 2)
+    #     pxy = scale * (fft_pxx * jnp.conj(fft_pyy))
+    #
+    #     return pyy, pxx, pxy
 
     def _calc_fft_window(self, spikes, stimulus):
         win = jnp.hanning(spikes.shape[1])
@@ -301,14 +332,14 @@ class SpectralMethods:
             detrend=False,
         )
         _, pxx = jsp.signal.welch(
-            spikes - jnp.mean(spikes),
+            spikes - jnp.mean(spikes, axis=1, keepdims=True),
             fs=self.config.fs,
             nperseg=self.config.nperseg,
             noverlap=self.config.nperseg // 2,
             detrend=False,
         )
         _, pxy = jsp.signal.csd(
-            spikes - jnp.mean(spikes),
+            spikes - jnp.mean(spikes, axis=1, keepdims=True),
             stimulus,
             fs=self.config.fs,
             nperseg=self.config.nperseg,
@@ -320,7 +351,8 @@ class SpectralMethods:
 
     def fft_segments(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):
         spikes, stimulus = self._segment_signal_trials(spikes, stimulus)
+
         pyy, pxx, pxy = self._calc_fft(
             spikes - jnp.mean(spikes, axis=-1, keepdims=True), stimulus
         )
-        return pyy.sum(axis=(0, 1)), pxx.sum(axis=(0, 1)), pxy.sum(axis=(0, 1))
+        return pyy.sum(axis=(1, 0)), pxx.sum(axis=(0, 1)), pxy.sum(axis=(0, 1))

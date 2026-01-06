@@ -36,10 +36,10 @@ def simulation(config: Config, params: punit.PUnitParams):
         kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
         for con, contrast in enumerate(config.contrasts):
             sm = SpectralMethods(config)
-            # for batch in jnp.arange(0, config.trials, config.batch_size):
-            for batch in track(
-                jnp.arange(0, config.trials, config.batch_size), description="Batches"
-            ):
+            for batch in jnp.arange(0, config.trials, config.batch_size):
+                # for batch in track(
+                #     jnp.arange(0, config.trials, config.batch_size), description="Batches"
+                # ):
                 wh = white_noise(
                     keys[0, con, batch : batch + config.batch_size, :],
                     config.wh_low,
@@ -87,9 +87,9 @@ def main() -> None:
             cell=model.cell,
             eodf=model.EODf,
             duration=300,
-            trials=500,
+            trials=100,
             batch_size=50,
-            nperseg=2**17,
+            nperseg=2**15,
         )
         model.deltat = 1 / config.fs
         simulation(config, model)

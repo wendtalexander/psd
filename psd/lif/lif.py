@@ -22,33 +22,36 @@ setup_logging(log)
 
 def simulation(config: Config, params: lif.LIFParams):
     log.debug(f"Processing nix File {config.savepath.name}")
-    k = jax.random.PRNGKey(config.jax_key)
-    keys = jax.random.split(k, config.trials * len(config.contrasts) * 2).reshape(
-        2, config.trials, -1
-    )
-    simulate = jax.vmap(jax.jit(lif.simulate_spikes), in_axes=[0, 0, None])
-    white_noise = jax.vmap(whitenoise, in_axes=[0, None, None, None, None])
-    spike_rate = jax.vmap(jax.jit(dsp.rate.spike_rate), in_axes=[0, None])
-    kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
 
-    sm = SpectralMethods(config)
-    # for batch in jnp.arange(0, config.trials, config.batch_size):
-    for batch in track(
-        jnp.arange(0, config.trials, config.batch_size), description="Batches"
-    ):
-        wh = white_noise(
-            keys[0, batch : batch + config.batch_size, :],
-            config.wh_low,
-            config.wh_high,
-            config.fs,
-            config.duration,
+    cpu_device = jax.devices("cpu")[0]
+    with jax.default_device(cpu_device):
+        k = jax.random.PRNGKey(config.jax_key)
+        keys = jax.random.split(k, config.trials * len(config.contrasts) * 2).reshape(
+            2, config.trials, -1
         )
-        spikes = simulate(keys[1, batch : batch + config.batch_size, :], wh, params)
-        rate = spike_rate(spikes[:, -config.nperseg :], kernel)
-        sm.update(spikes, wh, rate)
-    sm.norm()
-    sm.coherence_and_transfer()
-    sm.save()
+        simulate = jax.vmap(jax.jit(lif.simulate_spikes), in_axes=[0, 0, None])
+        white_noise = jax.vmap(whitenoise, in_axes=[0, None, None, None, None])
+        spike_rate = jax.vmap(jax.jit(dsp.rate.spike_rate), in_axes=[0, None])
+        kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
+
+        sm = SpectralMethods(config)
+        # for batch in jnp.arange(0, config.trials, config.batch_size):
+        for batch in track(
+            jnp.arange(0, config.trials, config.batch_size), description="Batches"
+        ):
+            wh = white_noise(
+                keys[0, batch : batch + config.batch_size, :],
+                config.wh_low,
+                config.wh_high,
+                config.fs,
+                config.duration,
+            )
+            spikes = simulate(keys[1, batch : batch + config.batch_size, :], wh, params)
+            rate = spike_rate(spikes[:, -config.nperseg :], kernel)
+            sm.update(spikes, wh, rate)
+        sm.norm()
+        sm.coherence_and_transfer()
+        sm.save()
 
 
 def main() -> None:
@@ -70,7 +73,15 @@ def main() -> None:
         if nix_file.is_file():
             log.debug("Found nix File deleting it")
             nix_file.unlink()
-    config = Config(savepath=savepath, cell="None", eodf="None")
+    config = Config(
+        savepath=savepath,
+        cell="None",
+        eodf="None",
+        duration=300,
+        batch_size=25,
+        trials=100,
+        nperseg=2**15,
+    )
     simulation(config, model)
 
 

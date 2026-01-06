@@ -1,4 +1,3 @@
-import gc
 import logging
 import sys
 from dataclasses import asdict, dataclass
@@ -13,7 +12,7 @@ from jaxon.models import punit
 from jaxon.params import load
 from rich.progress import track
 
-from psd.punit.punit_model_numba import simulate
+from psd.punit.model_numba import simulate
 from psd.spectral_methods import Config, SpectralMethods
 from psd.utils import setup_rich
 from psd.utils.general import find_project_root
@@ -80,7 +79,13 @@ def main() -> None:
             if nix_file.is_file():
                 log.debug("Found nix File deleting it")
                 nix_file.unlink()
-        config = Config(savepath=savepath, cell=model.cell, eodf=model.EODf)
+        config = Config(
+            trials=1000,
+            duration=2,
+            savepath=savepath,
+            cell=model.cell,
+            eodf=model.EODf,
+        )
         model.deltat = 1 / config.fs
         simulation(config, model)
         sys.exit()

@@ -23,6 +23,7 @@ fig.update_layout(
     height=600,
     width=600,
 )
+
 fig.update_layout(template="plotly_white")
 display(fig)
 fig.update_layout(template="plotly_dark")

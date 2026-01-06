@@ -13,7 +13,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from plots import comparision, spectral
 
-method = "welch_segments"
+method = "fft_segments"
 datafolder = pathlib.Path("../psd/data/lif/")
 dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
 fig = spectral(dataset_methods)

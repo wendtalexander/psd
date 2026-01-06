@@ -22,38 +22,41 @@ setup_logging(log)
 
 def simulation(config: Config, params: punit.PUnitParams):
     log.debug(f"Processing nix File {config.savepath.name}")
-    k = jax.random.PRNGKey(config.jax_key)
-    keys = jax.random.split(k, config.trials * len(config.contrasts) * 2).reshape(
-        2, len(config.contrasts), config.trials, -1
-    )
-    simulate = jax.vmap(jax.jit(punit.simulate_spikes), in_axes=[0, 0, None])
-    white_noise = jax.vmap(whitenoise, in_axes=[0, None, None, None, None])
-    spike_rate = jax.vmap(jax.jit(dsp.rate.spike_rate), in_axes=[0, None])
-    time = jnp.arange(0, config.duration, 1 / config.fs)
-    baseline = jnp.sin(2 * jnp.pi * config.eodf * time)[jnp.newaxis, :]
-    kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
-    for con, contrast in enumerate(config.contrasts):
-        sm = SpectralMethods(config)
-        # for batch in jnp.arange(0, config.trials, config.batch_size):
-        for batch in track(
-            jnp.arange(0, config.trials, config.batch_size), description="Batches"
-        ):
-            wh = white_noise(
-                keys[0, con, batch : batch + config.batch_size, :],
-                config.wh_low,
-                config.wh_high,
-                config.fs,
-                config.duration,
-            )
-            stimulus = baseline + (baseline * (wh * contrast))
-            spikes = simulate(
-                keys[1, con, batch : batch + config.batch_size, :], stimulus, params
-            )
-            rate = spike_rate(spikes[:, -config.nperseg :], kernel)
-            sm.update(spikes, wh, rate)
-        sm.norm()
-        sm.coherence_and_transfer()
-        sm.save(contrast=contrast)
+    cpu_device = jax.devices("cpu")[0]
+    with jax.default_device(cpu_device):
+        k = jax.random.PRNGKey(config.jax_key)
+        keys = jax.random.split(k, config.trials * len(config.contrasts) * 2).reshape(
+            2, len(config.contrasts), config.trials, -1
+        )
+        simulate = jax.vmap(jax.jit(punit.simulate_spikes), in_axes=[0, 0, None])
+        white_noise = jax.vmap(whitenoise, in_axes=[0, None, None, None, None])
+        spike_rate = jax.vmap(jax.jit(dsp.rate.spike_rate), in_axes=[0, None])
+        time = jnp.arange(0, config.duration, 1 / config.fs)
+        baseline = jnp.sin(2 * jnp.pi * config.eodf * time)[jnp.newaxis, :]
+        kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
+        for con, contrast in enumerate(config.contrasts):
+            sm = SpectralMethods(config)
+            # for batch in jnp.arange(0, config.trials, config.batch_size):
+            for batch in track(
+                jnp.arange(0, config.trials, config.batch_size), description="Batches"
+            ):
+                wh = white_noise(
+                    keys[0, con, batch : batch + config.batch_size, :],
+                    config.wh_low,
+                    config.wh_high,
+                    config.fs,
+                    config.duration,
+                )
+                stimulus = baseline + (baseline * (wh * contrast))
+
+                spikes = simulate(
+                    keys[1, con, batch : batch + config.batch_size, :], stimulus, params
+                )
+                rate = spike_rate(spikes[:, -config.nperseg :], kernel)
+                sm.update(spikes, wh, rate)
+            sm.norm()
+            sm.coherence_and_transfer()
+            sm.save(contrast=contrast)
 
 
 def main() -> None:
@@ -71,12 +74,22 @@ def main() -> None:
             if nix_file.is_file():
                 log.debug("Found nix File deleting it")
                 nix_file.unlink()
+        # config = Config(
+        #     savepath=savepath,
+        #     cell=model.cell,
+        #     eodf=model.EODf,
+        #     duration=4,
+        #     trials=10_000,
+        #     batch_size=500,
+        # )
         config = Config(
             savepath=savepath,
             cell=model.cell,
             eodf=model.EODf,
-            duration=100,
-            trials=100,
+            duration=300,
+            trials=500,
+            batch_size=50,
+            nperseg=2**17,
         )
         model.deltat = 1 / config.fs
         simulation(config, model)

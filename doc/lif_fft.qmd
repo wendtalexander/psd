@@ -11,8 +11,8 @@ import nixio
 from plots import spectral
 
 method = "fft"
-datafolder = pathlib.Path("../psd/data/lif/")
-dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
+datafolder = pathlib.Path("../psd/data/lif/fft_lif.nix")
+dataset_methods = [datafolder]
 fig = spectral(dataset_methods, negative_frequencies=True)
 ```
 

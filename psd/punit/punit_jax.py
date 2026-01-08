@@ -35,7 +35,8 @@ def simulation(config: Config, params: punit.PUnitParams):
         baseline = jnp.sin(2 * jnp.pi * config.eodf * time)[jnp.newaxis, :]
         kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
         for con, contrast in enumerate(config.contrasts):
-            sm = SpectralMethods(config)
+            # sm = SpectralMethods(config)
+            sm = SpectralMethods(config, methods=["welch", "fft_segments"])
             for batch in jnp.arange(0, config.trials, config.batch_size):
                 # for batch in track(
                 #     jnp.arange(0, config.trials, config.batch_size), description="Batches"
@@ -62,9 +63,7 @@ def simulation(config: Config, params: punit.PUnitParams):
 def main() -> None:
     models: list[punit.PUnitParams] = load.punit_params()
     for model in models:
-        savepath: Path = (
-            find_project_root() / "data" / "punit" / "duration" / model.cell
-        )
+        savepath: Path = find_project_root() / "data" / "punit" / "long" / model.cell
 
         if not savepath.exists():
             savepath.mkdir(parents=True, exist_ok=True)
@@ -74,6 +73,7 @@ def main() -> None:
             if nix_file.is_file():
                 log.debug("Found nix File deleting it")
                 nix_file.unlink()
+        # NOTE:NORMAL
         # config = Config(
         #     savepath=savepath,
         #     cell=model.cell,
@@ -82,14 +82,25 @@ def main() -> None:
         #     trials=10_000,
         #     batch_size=500,
         # )
+        # NOTE:duration
+        # config = Config(
+        #     savepath=savepath,
+        #     cell=model.cell,
+        #     eodf=model.EODf,
+        #     duration=300,
+        #     trials=100,
+        #     batch_size=50,
+        #     nperseg=2**15,
+        # )
+
+        # NOTE:long
         config = Config(
             savepath=savepath,
             cell=model.cell,
             eodf=model.EODf,
-            duration=300,
-            trials=100,
-            batch_size=50,
-            nperseg=2**15,
+            duration=20_000,
+            trials=1,
+            batch_size=1,
         )
         model.deltat = 1 / config.fs
         simulation(config, model)

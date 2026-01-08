@@ -219,10 +219,13 @@ class SpectralMethods:
 
     def _calc_fft(self, spikes, stimulus):
         scale = 1.0 / (self.config.fs * spikes.shape[-1])
+
         fft_pxx = jnp.fft.fftshift(jnp.fft.fft(spikes))
         pxx = scale * (jnp.abs(fft_pxx) ** 2)
+
         fft_pyy = jnp.fft.fftshift(jnp.fft.fft(stimulus))
         pyy = scale * (jnp.abs(fft_pyy) ** 2)
+
         pxy = scale * (fft_pxx * jnp.conj(fft_pyy))
         return pyy, pxx, pxy
 

@@ -59,6 +59,7 @@ website:
           - "punit_vmem.qmd"
           - "punit_nperseg.qmd"
           - "punit_nperseg_fs.qmd"
+          - "punit_long.qmd"
 
       - section: "LIF"
         contents:

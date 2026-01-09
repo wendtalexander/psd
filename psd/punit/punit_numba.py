@@ -36,40 +36,47 @@ def simulation(config: Config, params: punit.PUnitParams):
     params.pop("cell")
     params.pop("EODf")
 
-    for con, contrast in enumerate(config.contrasts):
-        sm = SpectralMethods(config)
+    cpu_device = jax.devices("cpu")[0]
+    with jax.default_device(cpu_device):
+        for con, contrast in enumerate(config.contrasts):
+            # sm = SpectralMethods(config)
+            sm = SpectralMethods(config, methods=["welch", "fft_segments"])
 
-        for trial in track(range(config.trials), description="Trials"):
-            wh = whitenoise_jan(
-                config.wh_low,
-                config.wh_high,
-                1 / config.fs,
-                config.duration,
-            )[:-1]
+            # for trial in track(range(config.trials), description="Trials"):
+            for trial in range(config.trials):
+                wh = whitenoise_jan(
+                    config.wh_low,
+                    config.wh_high,
+                    1 / config.fs,
+                    config.duration,
+                )[:-1]
 
-            stimulus = baseline + (baseline * (wh * contrast))
+                stimulus = baseline + (baseline * (wh * contrast))
 
-            spikes_numba = simulate(stimulus, **params)
-            spikes = np.zeros_like(time)
-            spike_index = np.clip(
-                np.round(spikes_numba * config.fs), 0, len(time) - 1
-            ).astype(int)
-            spikes[spike_index] = 1
-            spikes = spikes[np.newaxis, :]
-            wh = wh[np.newaxis, :]
+                spikes_numba = simulate(stimulus, **params)
+                spikes = jnp.zeros_like(time)
+                spike_index = jnp.clip(
+                    jnp.round(spikes_numba * config.fs), 0, len(time) - 1
+                ).astype(int)
+                spikes.at[spike_index].set(1)
+                spikes = spikes[jnp.newaxis, :]
+                wh = wh[jnp.newaxis, :]
 
-            rate = spike_rate(spikes[:, -config.nperseg :], kernel)
-            sm.update(spikes, wh, rate)
+                rate = spike_rate(spikes[:, -config.nperseg :], kernel)
 
-        sm.norm()
-        sm.coherence_and_transfer()
-        sm.save(contrast)
+                sm.update(spikes, wh, rate)
+
+            sm.norm()
+            sm.coherence_and_transfer()
+            sm.save(contrast)
 
 
 def main() -> None:
     models: list[punit.PUnitParams] = load.punit_params()
     for model in models:
-        savepath: Path = find_project_root() / "data" / "punit" / "numba" / model.cell
+        savepath: Path = (
+            find_project_root() / "data" / "punit" / "long_numba" / model.cell
+        )
 
         if not savepath.exists():
             savepath.mkdir(parents=True, exist_ok=True)
@@ -80,8 +87,8 @@ def main() -> None:
                 log.debug("Found nix File deleting it")
                 nix_file.unlink()
         config = Config(
-            trials=1000,
-            duration=2,
+            trials=1,
+            duration=20_000,
             savepath=savepath,
             cell=model.cell,
             eodf=model.EODf,

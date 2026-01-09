@@ -15,7 +15,7 @@ class Config:
     eodf: float | None = None
     duration: int = 2
     trials: int = 10_000
-    contrasts: list[float] = field(default_factory=lambda: [0.1])
+    contrasts: list[float] = field(default_factory=lambda: [0.01, 0.1, 0.2])
     batch_size: int = 2000
     nperseg: int = 2**15
     fs: int = 30_000
@@ -302,7 +302,6 @@ class SpectralMethods:
             nfft=None,
             noverlap=0,
         )
-
         return pyy.sum(axis=0), pxx.sum(axis=0), pxy.sum(axis=0)
 
     def fft(self, spikes: jnp.ndarray, stimulus: jnp.ndarray):
@@ -358,4 +357,8 @@ class SpectralMethods:
         pyy, pxx, pxy = self._calc_fft(
             spikes - jnp.mean(spikes, axis=-1, keepdims=True), stimulus
         )
-        return pyy.sum(axis=(1, 0)), pxx.sum(axis=(0, 1)), pxy.sum(axis=(0, 1))
+        return (
+            pyy.sum(axis=(0, 1)) / spikes.shape[1],
+            pxx.sum(axis=(0, 1)) / spikes.shape[1],
+            pxy.sum(axis=(0, 1)) / spikes.shape[1],
+        )

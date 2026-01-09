@@ -1,11 +1,31 @@
 import pathlib
+from contextlib import contextmanager
 
+import matplotlib as mpl
+import matplotlib.patheffects as patheffects
 import matplotlib.pyplot as plt
 import nixio
 import numpy as np
 import plotly.graph_objects as go
 from IPython import embed
 from plotly.subplots import make_subplots
+
+
+@contextmanager
+def dark_xkcd():
+    """
+    A custom context manager that combines dark_background, xkcd,
+    and fixes the path effects to use a black outline (k)
+    so fonts remain crisp on a dark background.
+    """
+    rc_fix = {
+        "path.effects": [patheffects.withStroke(linewidth=4, foreground="k")],
+    }
+
+    with plt.xkcd():
+        with plt.style.context("dark_background"):
+            with mpl.rc_context(rc_fix):
+                yield
 
 
 def spectral(

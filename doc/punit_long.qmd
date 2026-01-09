@@ -13,8 +13,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from plots import comparision, spectral
 
-method = "fft_segments"
-contrast = 0.1
+method = "welch"
+contrast = 0.2
 datafolder = pathlib.Path(
     "../psd/data/punit/long/2010-11-08-al-invivo-1/fft_segments_2010-11-08-al-invivo-1.nix"
 )
@@ -49,33 +49,3 @@ print(coherence)
 print(pxx[0])
 ```
 
-## JAX vs numba
-
-```{python}
-# | echo: false
-# | output : false
-
-datafolder_jax = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
-datafolder_numba = pathlib.Path("../psd/data/punit/numba/2010-11-08-al-invivo-1/")
-dataset_methods_jax = sorted(datafolder_jax.rglob(f"{method}*.nix"))
-dataset_methods_numba = sorted(datafolder_numba.rglob(f"{method}*.nix"))
-fig = comparision(
-    dataset_methods_jax,
-    dataset_methods_numba,
-    negative_frequencies=True,
-    contrast=contrast,
-)
-```
-
-```{python}
-# | echo: false
-# | renderings: [light, dark]
-fig.update_layout(
-    height=600,
-    width=600,
-)
-fig.update_layout(template="plotly_white")
-display(fig)
-fig.update_layout(template="plotly_dark")
-display(fig)
-```

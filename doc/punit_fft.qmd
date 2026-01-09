@@ -13,10 +13,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from plots import comparision, spectral
 
-method = "fft_segments"
+method = "fft"
 contrast = 0.1
-datafolder = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
-dataset_methods = sorted(datafolder.rglob(f"{method}*.nix"))
+datafolder = pathlib.Path(
+    "../psd/data/punit/jax/2010-11-08-al-invivo-1/fft_hanning_2010-11-08-al-invivo-1.nix"
+)
+dataset_methods = [datafolder]
 fig = spectral(dataset_methods, contrast=contrast, negative_frequencies=True)
 ```
 
@@ -53,10 +55,14 @@ print(pxx[0])
 # | echo: false
 # | output : false
 
-datafolder_jax = pathlib.Path("../psd/data/punit/jax/2010-11-08-al-invivo-1/")
-datafolder_numba = pathlib.Path("../psd/data/punit/numba/2010-11-08-al-invivo-1/")
-dataset_methods_jax = sorted(datafolder_jax.rglob(f"{method}*.nix"))
-dataset_methods_numba = sorted(datafolder_numba.rglob(f"{method}*.nix"))
+datafolder_jax = pathlib.Path(
+    "../psd/data/punit/jax/2010-11-08-al-invivo-1/fft_hanning_2010-11-08-al-invivo-1.nix"
+)
+datafolder_numba = pathlib.Path(
+    "../psd/data/punit/numba/2010-11-08-al-invivo-1/fft_2010-11-08-al-invivo-1.nix"
+)
+dataset_methods_jax = [datafolder_jax]
+dataset_methods_numba = [datafolder_numba]
 fig = comparision(
     dataset_methods_jax,
     dataset_methods_numba,

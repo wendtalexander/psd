@@ -38,10 +38,11 @@ def simulation(config: Config, params: punit.PUnitParams):
         kernel = dsp.kernels.gauss_kernel(config.sigma, 1 / config.fs, config.ktime)
         for con, contrast in enumerate(config.contrasts):
             sm = SpectralMethods(config)
-            for batch in jnp.arange(0, config.trials, config.batch_size):
-                # for batch in track(
-                #     jnp.arange(0, config.trials, config.batch_size), description="Batches"
-                # ):
+            # for batch in jnp.arange(0, config.trials, config.batch_size):
+            for batch in track(
+                jnp.arange(0, config.trials, config.batch_size),
+                description=f"Contrast {contrast}",
+            ):
                 wh = white_noise(
                     keys[0, con, batch : batch + config.batch_size, :],
                     config.wh_low,

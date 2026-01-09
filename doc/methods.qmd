@@ -1,5 +1,12 @@
 ---
 title: Mehtods for the psd
+format:
+  html:
+    fig-width: 5
+    fig-height: 3
+  pdf:
+    fig-width: 5
+    fig-height: 3
 ---
 Here I want to give a brief overview over the different methods one can use to calculate the power spectral density of a signal.
 
@@ -10,8 +17,201 @@ divided into segments, or the model is already simulated in a short segments.
 From each of these segments the Fast Fouier Transformation is calculated.
 Where the power spectral desity is caclulated with from the function $f(t)$
 
-$$ P_{xx} = \lvert F(\omega)\rvert^2  dt $$
+$$ P_{xx} = \lvert F(\omega)\rvert^2  $$
 for each segment and summed over the different trials of the simulation.
+
+### 1.1 Example sinus function
+Here an example sinus where we take the last 256 data points for calculating the discrete fourier transformation (DFT) with `jax.numpy.fft.fft`.
+
+```{python}
+# | echo: false
+
+import matplotlib as mpl
+import matplotlib.patheffects as patheffects
+import matplotlib.pyplot as plt
+from plots import dark_xkcd
+```
+```{python}
+import numpy as np
+
+T = 0.01
+nperseg = 512
+duration = 20
+
+time = np.arange(0, duration, T)
+s = np.sin(2 * np.pi * time)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+# | fig-align: center
+def _plot_time(dark: bool = False):
+    color = "cyan" if dark else "tab:blue"
+    upper = 10
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    ax.set_title(f"Sinus with fs: 100 Hz,\n with nperseg: {nperseg}")
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.spines.bottom.set_bounds(time.min(), upper)
+    ax.spines.left.set_bounds(s.min(), s.max())
+    ax.plot(time, s, "-.", color=color)
+    ax.set_yticks(np.arange(-1.0, 1.5, 0.5))
+    ax.set_xticks(np.arange(0, upper + 2, 2))
+    ax.axvspan(xmin=time[-nperseg], xmax=time[-1], alpha=0.2, color=color)
+
+    return fig
+
+
+with plt.xkcd():
+    fig = _plot_time()
+plt.show()
+
+
+with dark_xkcd():
+    fig = _plot_time(dark=True)
+    plt.show()
+```
+where the DFT is defined as :
+$$A_k = \sum_{m=0}^{n-1} a_m \exp \left\{-2 \pi i \frac{mk}{n} \right\} \quad k=0,..., n-1 $$
+is calculated for the highlighted segment. Which relates to the continuous
+Fourier transformation with a scaling factor where T is the samplint interval
+of 10ms:
+
+$$ A(k\Delta f) = TA_k$$
+
+### 1.2 Magnitude spectrum
+::::{.columns}
+:::{.column width="50%"}
+```{python}
+nperseg = 512
+S = np.fft.rfft(s[-nperseg:]) / nperseg
+f = np.fft.rfftfreq(nperseg, T)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+# | fig-align: center
+upper = 3
+
+
+def _plot_mag_spectrum(dark: bool = False):
+    color = "cyan" if dark else "tab:blue"
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    ax.set_title(f"Sinus with fs: 100 Hz,\n with nperseg: {nperseg}")
+    ax.spines[["top", "right"]].set_visible(False)
+    mask = f < upper
+    ax.plot(f[mask], np.abs(S)[mask], "-.", color=color)
+    ax.set_yticks(np.arange(0, 0.6, 0.1))
+    ax.set_xticks(np.arange(0, upper + 1, 1))
+    ax.spines.bottom.set_bounds(f.min(), upper)
+    ax.spines.left.set_bounds(np.abs(S).min(), 0.5)
+    return fig
+
+
+with plt.xkcd():
+    fig = _plot_mag_spectrum()
+plt.show()
+
+with dark_xkcd():
+    fig = _plot_mag_spectrum(dark=True)
+    plt.show()
+```
+:::
+:::{.column width ="50%"}
+```{python}
+nperseg = 256
+S = np.fft.rfft(s[-nperseg:]) / nperseg
+f = np.fft.rfftfreq(nperseg, T)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+# | fig-align: center
+
+with plt.xkcd():
+    fig = _plot_mag_spectrum()
+plt.show()
+
+with dark_xkcd():
+    fig = _plot_mag_spectrum(dark=True)
+    plt.show()
+```
+
+:::
+
+::::
+### 1.3 Power Spectral Density
+
+The power spectral density is definded as:
+$$P_x = \frac{|A_k|^2}{\tau},\quad with\quad\tau = nT$$
+
+::::{.columns}
+:::{.column width="50%"}
+```{python}
+nperseg = 512
+S_dens = np.fft.rfft(s[-nperseg:])
+Px = np.abs(S_dens) / (nperseg * T)
+f = np.fft.rfftfreq(nperseg, T)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+# | fig-align: center
+upper = 3
+
+
+def _plot_density_spectrum(dark: bool = False):
+    color = "cyan" if dark else "tab:blue"
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    ax.set_title(f"Sinus with fs: 100 Hz,\n with nperseg: {nperseg}")
+    ax.spines[["top", "right"]].set_visible(False)
+    mask = f < upper
+    ax.plot(f[mask], Px[mask], "-.", color=color)
+    # ax.set_xticks(np.arange(0, upper + 1, 1))
+    # ax.spines.bottom.set_bounds(f.min(), upper)
+    # ax.spines.left.set_bounds(np.abs(S).min(), 0.5)
+    return fig
+
+
+with plt.xkcd():
+    fig = _plot_density_spectrum()
+plt.show()
+
+with dark_xkcd():
+    fig = _plot_density_spectrum(dark=True)
+    plt.show()
+```
+:::
+:::{.column width ="50%"}
+```{python}
+nperseg = 1028
+S_dens = np.fft.rfft(s[-nperseg:])
+Px = np.abs(S_dens) / (nperseg * T)
+f = np.fft.rfftfreq(nperseg, T)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+# | fig-align: center
+
+with plt.xkcd():
+    fig = _plot_density_spectrum()
+plt.show()
+
+with dark_xkcd():
+    fig = _plot_density_spectrum(dark=True)
+    plt.show()
+```
+:::
+::::
+
 
 ## 2. With welch method
 The welch method is based on the `jax.scipy.singal.welch` method, where multiple segments mulitplied with a window (hanning window) for less spectral leakage in high frequencies.

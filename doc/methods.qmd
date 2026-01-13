@@ -11,7 +11,8 @@ format:
 Here I want to give a brief overview over the different methods one can use to calculate the power spectral density of a signal.
 
 
-## 1. With FFT
+## 1. Spectral Analysis of a Sinus
+
 The normal FFT method uses the `jax.numpy.fft.fft` method, where the singnal is
 divided into segments, or the model is already simulated in a short segments.
 From each of these segments the Fast Fouier Transformation is calculated.
@@ -48,7 +49,7 @@ s = np.sin(2 * np.pi * time)
 # | fig-align: center
 def _plot_time(dark: bool = False):
     color = "cyan" if dark else "tab:blue"
-    upper = 10
+    upper = 20
     fig = plt.figure()
     ax = fig.add_subplot()
     ax.set_title(f"Sinus with fs: 100 Hz,\n with nperseg: {nperseg}")
@@ -163,34 +164,36 @@ f = np.fft.rfftfreq(nperseg, T)
 # | renderings: [light, dark]
 # | fig-align: center
 upper = 3
+steps = 1
 
 
-def _plot_density_spectrum(dark: bool = False):
+def _plot_density_spectrum(f, px, dark: bool = False):
     color = "cyan" if dark else "tab:blue"
     fig = plt.figure()
     ax = fig.add_subplot()
     ax.set_title(f"Sinus with fs: 100 Hz,\n with nperseg: {nperseg}")
     ax.spines[["top", "right"]].set_visible(False)
     mask = f < upper
-    ax.plot(f[mask], Px[mask], "-.", color=color)
-    # ax.set_xticks(np.arange(0, upper + 1, 1))
-    # ax.spines.bottom.set_bounds(f.min(), upper)
-    # ax.spines.left.set_bounds(np.abs(S).min(), 0.5)
+    ax.plot(f[mask], px[mask], "-.", color=color)
+    ax.set_xticks(np.arange(0, upper + 1, steps))
+    ax.set_yticks(np.arange(0, 60, 10))
+    ax.spines.bottom.set_bounds(0, upper)
+    ax.spines.left.set_bounds(0, 50)
     return fig
 
 
 with plt.xkcd():
-    fig = _plot_density_spectrum()
+    fig = _plot_density_spectrum(f, Px)
 plt.show()
 
 with dark_xkcd():
-    fig = _plot_density_spectrum(dark=True)
+    fig = _plot_density_spectrum(f, Px, dark=True)
     plt.show()
 ```
 :::
 :::{.column width ="50%"}
 ```{python}
-nperseg = 1028
+nperseg = 256
 S_dens = np.fft.rfft(s[-nperseg:])
 Px = np.abs(S_dens) / (nperseg * T)
 f = np.fft.rfftfreq(nperseg, T)
@@ -202,17 +205,102 @@ f = np.fft.rfftfreq(nperseg, T)
 # | fig-align: center
 
 with plt.xkcd():
-    fig = _plot_density_spectrum()
+    fig = _plot_density_spectrum(f, Px)
 plt.show()
 
 with dark_xkcd():
-    fig = _plot_density_spectrum(dark=True)
+    fig = _plot_density_spectrum(f, Px, dark=True)
     plt.show()
 ```
 :::
 ::::
 
+## 2. Power Spectral Density in LIF
+The leaky integrated and fire neuron is one of the standart neuroscience model for analyzing spiking activity.
 
+```{python}
+# | echo: false
+import jax
+import jax.numpy as jnp
+from jaxon.models import lif
+
+fs = 1000
+T = 1 / fs
+duration = 10
+trials = 10
+
+threshold = 1.0
+v_offset = 0.2
+tau_mem = 0.01
+v_base = 0.0
+noise_strength = 0.01
+
+# first generate a random key for the LIF model
+key = jax.random.PRNGKey(42)
+keys = jax.random.split(key, 10)
+time = jnp.arange(0, duration, 1 / fs)
+params = lif.LIFParams(fs, threshold, v_offset, tau_mem, v_base, noise_strength)
+stimulus = jnp.ones_like(time)
+spike_train = []
+bin_spikes = []
+for tr in range(trials):
+    binary_spikes, vmem = lif.simulate(keys[tr], stimulus, params)
+    bin_spikes.append(binary_spikes)
+    spike_train.append(time[binary_spikes.astype(bool)])
+
+bin_spikes = jnp.array(bin_spikes)
+
+
+def _plot_spike_raster(spikes_train, dark: bool = False):
+    color = "cyan" if dark else "tab:blue"
+    x_lim = 0.5
+    fig, ax = plt.subplots()
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.eventplot(spike_train, color=color)
+    ax.set_xlim(0, x_lim)
+    ax.spines.bottom.set_bounds(0, x_lim)
+    ax.spines.left.set_bounds(0, trials)
+    return fig
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+# | fig-align: center
+
+with plt.xkcd():
+    fig = _plot_spike_raster(spike_train)
+plt.show()
+
+with dark_xkcd():
+    fig = _plot_spike_raster(spike_train, dark=True)
+plt.show()
+```
+Where we can use the last segment of each trial, convert it to binaray spike train, and feed it into the power spectral analysis
+
+```{python}
+nperseg = 512
+S_dens = np.fft.rfft(bin_spikes[:, -nperseg:])
+Px = np.abs(S_dens) / (nperseg * T)
+Px = Px.sum(axis=0) / trials
+f = np.fft.rfftfreq(nperseg, T)
+```
+
+```{python}
+# | echo: false
+# | renderings: [light, dark]
+# | fig-align: center
+
+upper = 300
+steps = 50
+with plt.xkcd():
+    fig = _plot_density_spectrum(f, Px)
+plt.show()
+
+with dark_xkcd():
+    fig = _plot_density_spectrum(f, Px, dark=True)
+    plt.show()
+```
 ## 2. With welch method
 The welch method is based on the `jax.scipy.singal.welch` method, where multiple segments mulitplied with a window (hanning window) for less spectral leakage in high frequencies.
 

@@ -16,7 +16,7 @@ from plots import comparision, spectral
 method = "fft"
 contrast = 0.1
 datafolder = pathlib.Path(
-    "../psd/data/punit/jax/2010-11-08-al-invivo-1/fft_hanning_2010-11-08-al-invivo-1.nix"
+    "../psd/data/punit/jax/2010-11-08-al-invivo-1/fft_2010-11-08-al-invivo-1.nix"
 )
 dataset_methods = [datafolder]
 fig = spectral(dataset_methods, contrast=contrast, negative_frequencies=True)

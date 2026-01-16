@@ -74,4 +74,4 @@ website:
           - ou_fft_without_mean_substraction.qmd
 
 execute:
-  freeze: auto
+  freeze: false
